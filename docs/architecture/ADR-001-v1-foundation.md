@@ -55,10 +55,10 @@ Em estrita conformidade com as Diretrizes de Qualidade do [`AGENTS.md`](file:///
 - **Playwright**: Utilizado para testes End-to-End (E2E), garantindo que os fluxos completos do analista na interface permaneçam estáveis;
 - **Regra Permanente**: É proibido contornar, enfraquecer ou mascarar testes para obter status verde artificialmente.
 
-### 2.8. Camada de Inteligência Artificial e Privacy Gateway
-A integração com IA seguirá uma arquitetura rigorosamente agnóstica:
+### 2.8. Camada de Inteligência Artificial e Proteção Rigorosa de Dados e Privacidade
+A integração com IA seguirá uma arquitetura rigorosamente agnóstica e segura:
 - **Padrão Adapter**: Toda comunicação com modelos de linguagem será mediada por interfaces abstratas desacopladas (`AiProvider`), impedindo qualquer dependência estrutural de um fornecedor específico (Google Gemini, OpenAI, Anthropic, Ollama, etc.);
-- **Privacy Gateway (Conceitual)**: A arquitetura deve prever conceitualmente um gateway de privacidade responsável por inspecionar, sanitizar ou bloquear o tráfego de dados de clientes para provedores externos de IA;
+- **Proteção Rigorosa de Dados e Privacidade**: Dados reais, pessoais, confidenciais, sigilosos ou corporativos não devem ser enviados a provedores externos de IA sem autorização e salvaguardas adequadas. Anonimização, minimização de dados, processamento local ou outros mecanismos de proteção poderão ser utilizados conforme o caso. A arquitetura não cria nem nomeia nesta fase um componente arquitetural específico responsável por essa finalidade;
 - **Escopo Imediato**: Nenhuma integração concreta com provedores externos de IA será implementada nesta fase.
 
 ### 2.9. Posicionamento do Power BI como Ferramenta Externa

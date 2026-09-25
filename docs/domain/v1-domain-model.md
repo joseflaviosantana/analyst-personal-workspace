@@ -254,7 +254,7 @@ A seguir estão detalhadas as entidades aprovadas para a V1, suas responsabilida
   - Mapeamento de relacionamentos e cardinalidades;
   - Lista de páginas e visuais principais.
 - **Relações Principais**:
-  - Pertence a uma **Demanda**;
+  - Pertence a uma **Demanda** (relação conceitual `Demanda 1 → 0..N ModeloPowerBI`, admitindo demandas sem modelos Power BI ou com múltiplos modelos);
   - Consome dados de **Ativos de Dados** tratados;
   - Contém múltiplas **Medidas DAX**;
   - Suporta os **Entregáveis**.
@@ -395,7 +395,7 @@ A seguir estão detalhadas as entidades aprovadas para a V1, suas responsabilida
 
 Conceitos do domínio que não possuem identidade persistente própria e são definidos por suas propriedades semânticas. Para evitar restrições arbitrárias, os exemplos abaixo representam valores ilustrativos e extensíveis, admitindo diferentes contextos profissionais:
 
-- **EstadoDemanda**: Estado conceitual no pipeline (`Nova`, `Em Clarificação`, `Dados Recebidos`, `Em Qualidade e Preparação`, `Em Modelagem e Análise`, `Em Validação`, `Pronta para Entrega`, `Concluída`).
+- **EstadoDemanda**: Estado conceitual no pipeline. Estados normais sequenciais: (`Nova`, `Em Clarificação`, `Dados Recebidos`, `Em Qualidade e Preparação`, `Em Modelagem e Análise`, `Em Validação`, `Pronta para Entrega`, `Concluída`). Estados excepcionais não sequenciais: (`Suspensa`, `Cancelada`).
 - **ClassificacaoEpistemica**: Categorização formal de afirmações (`Fato Observado`, `Hipótese`, `Inferência`, `Recomendação Técnica`).
 - **OrigemAutoria**: Proveniência e responsabilidade (`RegistradoPorHumano`, `SugeridoPorIA`, `AprovadoPorHumano`).
 - **Granularidade**: Nível semântico de detalhe de uma observação ou métrica (ex.: transacional, diária, mensal, por estudante, por filial, por bilhete, etc. — conceito extensível conforme o negócio).
@@ -425,7 +425,7 @@ As interações conceituais entre as entidades estruturam-se de maneira flexíve
                                              │      [Indicador / KPI]                                  ▼ *
                                              │             │                                    [AchadoAnalitico]
                                              │             ▼
-                                             ├─── 1 [ModeloPowerBI] ──── * [MedidaDAX]
+                                             ├─── 0..* [ModeloPowerBI] ──── * [MedidaDAX]
                                              │             │                     │
                                              │             ▼                     ▼
                                              ├─── * [Validacao] ◄────────────────┘
@@ -461,8 +461,20 @@ $$\longrightarrow \text{[Validação Cruzada]} \longrightarrow \text{[Entregáve
                                                             │
 [Concluída] ◄── [Pronta p/ Entrega] ◄── [Em Validação] ◄── [Em Modelagem/Análise]
 ```
+
+#### Estados Excepcionais (Não Sequenciais):
+```
+Qualquer Estado Normal ──► [Suspensa]   ──► Retorno ao estado original (via decisão humana)
+                       └──► [Cancelada]  ──► Encerramento excepcional com histórico preservado
+```
 - **Condição de Saída de Validação**: Nenhuma divergência crítica pendente.
 - **Condição de Saída de Entrega**: Entregáveis consolidados e validados pelo analista humano.
+- **Regras para Estados Excepcionais (`Suspensa` e `Cancelada`)**:
+  - Não constituem etapas sequenciais do fluxo normal;
+  - Toda transição para `Suspensa` ou `Cancelada` deve preservar integralmente todo o histórico da demanda;
+  - Exige justificativa formal obrigatória e auditável;
+  - Exige aprovação humana mandatória;
+  - Uma demanda no estado `Suspensa` pode retornar ao fluxo normal no estado em que foi pausada mediante deliberação humana registrada.
 
 ### 7.2. Ciclo de Vida do Problema de Qualidade
 ```
@@ -673,7 +685,7 @@ classDiagram
     Hipotese "*" --> "*" Evidencia : testada por
     PerguntaAnalitica "*" --> "*" IndicadorKPI : mobiliza
     IndicadorKPI "1" --> "*" MedidaDAX : implementado em
-    Demanda "1" --> "1" ModeloPowerBI : acompanha
+    Demanda "1" --> "*" ModeloPowerBI : acompanha
     ModeloPowerBI "1" --> "*" MedidaDAX : contem
     Evidencia "*" --> "*" AchadoAnalitico : fundamenta
     Demanda "1" --> "*" Validacao : audita

@@ -41,6 +41,19 @@ Para viabilizar o acompanhamento visual da demanda no Centro de Comando, o workf
 
 Cada transição de estado exige critérios objetivos de avanço, garantindo que etapas essenciais de validação e alinhamento não sejam suprimidas.
 
+### Estados Excepcionais da Demanda (Não Sequenciais)
+
+Além dos oito estados normais sequenciais, o sistema contempla dois **Estados Excepcionais** fora da sequência padrão:
+- **Suspensa**: Demanda com execução temporariamente pausada por impedimento externo ou solicitação do cliente;
+- **Cancelada**: Demanda abortada ou rescindida antes da conclusão.
+
+**Regras de Governança para Estados Excepcionais**:
+1. Não constituem novas etapas sequenciais do fluxo normal;
+2. Toda transição para `Suspensa` ou `Cancelada` preserva integralmente o histórico, ativos de dados e decisões produzidas;
+3. Exigem justificativa formal obrigatória e auditável;
+4. Exigem aprovação humana mandatória (proibida qualquer transição autônoma por IA);
+5. Uma demanda no estado `Suspensa` pode retornar ao fluxo normal no estado em que foi pausada, mediante decisão humana expressa.
+
 ---
 
 ## 3. O Ciclo Operacional em 12 Fases
