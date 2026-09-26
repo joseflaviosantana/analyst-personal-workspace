@@ -6,6 +6,8 @@ import {
   normalizarEstadoDemanda,
 } from '../enums/estado-demanda';
 
+import { ResultadoQualityGate } from './quality-gate';
+
 export class WorkflowTransitionError extends Error {
   constructor(message: string) {
     super(message);
@@ -19,6 +21,7 @@ export interface ContextoTransicao {
   totalAtivosDados?: number;
   validacoesPendentes?: number;
   entregaveisHomologados?: boolean;
+  qualityGate?: ResultadoQualityGate;
 }
 
 export interface ResultadoValidacaoTransicao {
@@ -169,6 +172,30 @@ export class WorkflowEngine {
           valida: false,
           mensagem: 'Não é permitido avançar para Em Qualidade e Preparação sem ativo de dados cadastrado.',
         };
+      }
+    }
+
+    if (origem === EstadoDemanda.EM_QUALIDADE_E_PREPARACAO && destino === EstadoDemanda.EM_MODELAGEM_E_ANALISE) {
+      if (!contexto?.qualityGate) {
+        return {
+          valida: false,
+          mensagem: 'Não é permitido avançar para Em Modelagem e Análise sem a avaliação do Quality Gate de qualidade de dados.',
+        };
+      }
+      if (!contexto.qualityGate.liberado) {
+        return {
+          valida: false,
+          mensagem: `Quality Gate bloqueado: ${contexto.qualityGate.motivo}`,
+        };
+      }
+      if (contexto.qualityGate.exigeJustificativa) {
+        const just = contexto.justificativa?.trim() ?? '';
+        if (just.length < 15) {
+          return {
+            valida: false,
+            mensagem: `O avanço com Quality Gate em ressalva exige justificativa formal com no mínimo 15 caracteres. ${contexto.qualityGate.motivo}`,
+          };
+        }
       }
     }
 

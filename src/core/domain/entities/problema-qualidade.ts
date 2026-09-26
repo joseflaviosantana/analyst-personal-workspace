@@ -1,3 +1,4 @@
+import { AcaoProblemaQualidade } from '../enums/acao-problema-qualidade';
 import { CategoriaProblemaQualidade } from '../enums/categoria-problema-qualidade';
 import { SeveridadeProblema } from '../enums/severidade-problema';
 import { StatusProblemaQualidade } from '../enums/status-problema-qualidade';
@@ -40,7 +41,7 @@ export interface ProblemaQualidade {
   amostra_evidencias: EvidenciaProblemaQualidade[];
   severidade: SeveridadeProblema;
   impacto_calculo: string | null;
-  acao_deliberada: string | null;
+  acao_deliberada: AcaoProblemaQualidade | string | null;
   justificativa_deliberacao: string | null;
   deliberado_por_humano: boolean;
   deliberado_em: string | null;

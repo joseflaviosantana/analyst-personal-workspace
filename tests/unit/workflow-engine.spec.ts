@@ -11,13 +11,26 @@ import { WorkflowEngine, WorkflowTransitionError } from '@/core/domain/rules/wor
 describe('Core Domain: Workflow Engine & Governança de Estados (V1 — Bloco 2)', () => {
   describe('1. Transições Válidas da Esteira Sequencial Normal (1 a 8)', () => {
     it('deve permitir todo o encadeamento sequencial normal passo a passo', () => {
+      const contextoValido = {
+        totalAtivosDados: 1,
+        qualityGate: {
+          decisao: 'LIBERADO' as const,
+          liberado: true,
+          bloqueante: false,
+          exigeJustificativa: false,
+          motivo: 'Critérios de qualidade atendidos com sucesso.',
+          detalhes: {} as any,
+        },
+        entregaveisHomologados: true,
+      };
+
       for (let i = 0; i < ESTADOS_ORDENADOS_SEQUENCIAIS.length - 1; i++) {
         const origem = ESTADOS_ORDENADOS_SEQUENCIAIS[i];
         const destino = ESTADOS_ORDENADOS_SEQUENCIAIS[i + 1];
 
-        const resultado = WorkflowEngine.podeTransitar(origem, destino);
+        const resultado = WorkflowEngine.podeTransitar(origem, destino, contextoValido);
         expect(resultado.valida).toBe(true);
-        expect(() => WorkflowEngine.validarTransicao(origem, destino)).not.toThrow();
+        expect(() => WorkflowEngine.validarTransicao(origem, destino, contextoValido)).not.toThrow();
       }
     });
 
@@ -328,6 +341,239 @@ describe('Core Domain: Workflow Engine & Governança de Estados (V1 — Bloco 2)
       expect(WorkflowEngine.isEstadoTerminal(EstadoDemanda.SUSPENSA)).toBe(false);
       expect(WorkflowEngine.isEstadoTerminal(EstadoDemanda.PRONTA_PARA_ENTREGA)).toBe(false);
       expect(ESTADOS_TERMINAIS).toEqual([EstadoDemanda.CONCLUIDA, EstadoDemanda.CANCELADA]);
+    });
+  });
+
+  describe('8. Quality Gate na Transição EM_QUALIDADE_E_PREPARACAO → EM_MODELAGEM_E_ANALISE', () => {
+    it('deve bloquear a transição quando executada SEM qualityGate (impossibilidade de bypass)', () => {
+      // Sem contexto
+      const resSemContexto = WorkflowEngine.podeTransitar(
+        EstadoDemanda.EM_QUALIDADE_E_PREPARACAO,
+        EstadoDemanda.EM_MODELAGEM_E_ANALISE
+      );
+      expect(resSemContexto.valida).toBe(false);
+      expect(resSemContexto.mensagem).toContain('sem a avaliação do Quality Gate');
+      expect(() =>
+        WorkflowEngine.validarTransicao(
+          EstadoDemanda.EM_QUALIDADE_E_PREPARACAO,
+          EstadoDemanda.EM_MODELAGEM_E_ANALISE
+        )
+      ).toThrow(WorkflowTransitionError);
+
+      // Com contexto mas sem qualityGate
+      const resSemGate = WorkflowEngine.podeTransitar(
+        EstadoDemanda.EM_QUALIDADE_E_PREPARACAO,
+        EstadoDemanda.EM_MODELAGEM_E_ANALISE,
+        { justificativa: 'Tentativa sem gate' }
+      );
+      expect(resSemGate.valida).toBe(false);
+      expect(resSemGate.mensagem).toContain('sem a avaliação do Quality Gate');
+    });
+
+    it('deve bloquear a transição quando o Quality Gate estiver bloqueado por diagnóstico mais recente FALHA', () => {
+      const res = WorkflowEngine.podeTransitar(
+        EstadoDemanda.EM_QUALIDADE_E_PREPARACAO,
+        EstadoDemanda.EM_MODELAGEM_E_ANALISE,
+        {
+          qualityGate: {
+            decisao: 'BLOQUEADO',
+            liberado: false,
+            bloqueante: true,
+            exigeJustificativa: false,
+            motivo: 'O diagnóstico de qualidade mais recente falhou. É necessário reexecutar ou investigar a causa-raiz.',
+            detalhes: {} as any,
+          },
+        }
+      );
+
+      expect(res.valida).toBe(false);
+      expect(res.mensagem).toContain('falhou');
+      expect(() =>
+        WorkflowEngine.validarTransicao(
+          EstadoDemanda.EM_QUALIDADE_E_PREPARACAO,
+          EstadoDemanda.EM_MODELAGEM_E_ANALISE,
+          {
+            qualityGate: {
+              decisao: 'BLOQUEADO',
+              liberado: false,
+              bloqueante: true,
+              exigeJustificativa: false,
+              motivo: 'O diagnóstico de qualidade mais recente falhou.',
+              detalhes: {} as any,
+            },
+          }
+        )
+      ).toThrow(WorkflowTransitionError);
+    });
+
+    it('deve bloquear a transição quando o Quality Gate estiver bloqueado por diagnóstico mais recente EM_ANDAMENTO', () => {
+      const res = WorkflowEngine.podeTransitar(
+        EstadoDemanda.EM_QUALIDADE_E_PREPARACAO,
+        EstadoDemanda.EM_MODELAGEM_E_ANALISE,
+        {
+          qualityGate: {
+            decisao: 'BLOQUEADO',
+            liberado: false,
+            bloqueante: true,
+            exigeJustificativa: false,
+            motivo: 'O diagnóstico de qualidade mais recente ainda está em execução.',
+            detalhes: {} as any,
+          },
+        }
+      );
+
+      expect(res.valida).toBe(false);
+      expect(res.mensagem).toContain('ainda está em execução');
+    });
+
+    it('deve bloquear a transição quando houver problemas PENDENTE de deliberação', () => {
+      const res = WorkflowEngine.podeTransitar(
+        EstadoDemanda.EM_QUALIDADE_E_PREPARACAO,
+        EstadoDemanda.EM_MODELAGEM_E_ANALISE,
+        {
+          qualityGate: {
+            decisao: 'BLOQUEADO',
+            liberado: false,
+            bloqueante: true,
+            exigeJustificativa: false,
+            motivo: 'Existem 3 problema(s) de qualidade pendente(s) de deliberação humana.',
+            detalhes: {} as any,
+          },
+        }
+      );
+
+      expect(res.valida).toBe(false);
+      expect(res.mensagem).toContain('pendente(s) de deliberação humana');
+    });
+
+    it('deve bloquear a transição quando houver problemas ALTA ou CRITICA não resolvidos', () => {
+      const resAlta = WorkflowEngine.podeTransitar(
+        EstadoDemanda.EM_QUALIDADE_E_PREPARACAO,
+        EstadoDemanda.EM_MODELAGEM_E_ANALISE,
+        {
+          qualityGate: {
+            decisao: 'BLOQUEADO',
+            liberado: false,
+            bloqueante: true,
+            exigeJustificativa: false,
+            motivo: 'Existem 1 problema(s) de severidade alta em aberto/investigação sem tratamento ou aceite formal.',
+            detalhes: {} as any,
+          },
+        }
+      );
+
+      expect(resAlta.valida).toBe(false);
+      expect(resAlta.mensagem).toContain('severidade alta em aberto/investigação');
+
+      const resCritica = WorkflowEngine.podeTransitar(
+        EstadoDemanda.EM_QUALIDADE_E_PREPARACAO,
+        EstadoDemanda.EM_MODELAGEM_E_ANALISE,
+        {
+          qualityGate: {
+            decisao: 'BLOQUEADO',
+            liberado: false,
+            bloqueante: true,
+            exigeJustificativa: false,
+            motivo: 'Existem 1 problema(s) crítico(s) em aberto/investigação sem tratamento ou aceite formal.',
+            detalhes: {} as any,
+          },
+        }
+      );
+
+      expect(resCritica.valida).toBe(false);
+      expect(resCritica.mensagem).toContain('crítico(s) em aberto/investigação');
+    });
+
+    it('deve exigir justificativa >= 15 caracteres quando o Quality Gate estiver em ressalva (CONCLUIDO_PARCIALMENTE)', () => {
+      const resSemJust = WorkflowEngine.podeTransitar(
+        EstadoDemanda.EM_QUALIDADE_E_PREPARACAO,
+        EstadoDemanda.EM_MODELAGEM_E_ANALISE,
+        {
+          qualityGate: {
+            decisao: 'LIBERADO_COM_RESSALVA',
+            liberado: true,
+            bloqueante: false,
+            exigeJustificativa: true,
+            motivo: 'Diagnóstico concluído parcialmente: a(s) verificação(ões) [Duplicidade de Linhas] foi(ram) limitada(s) por guardrail.',
+            detalhes: {} as any,
+          },
+        }
+      );
+
+      expect(resSemJust.valida).toBe(false);
+      expect(resSemJust.mensagem).toContain('exige justificativa formal com no mínimo 15 caracteres');
+
+      const resJustCurta = WorkflowEngine.podeTransitar(
+        EstadoDemanda.EM_QUALIDADE_E_PREPARACAO,
+        EstadoDemanda.EM_MODELAGEM_E_ANALISE,
+        {
+          justificativa: 'Menor que 15',
+          qualityGate: {
+            decisao: 'LIBERADO_COM_RESSALVA',
+            liberado: true,
+            bloqueante: false,
+            exigeJustificativa: true,
+            motivo: 'Guardrail atingido.',
+            detalhes: {} as any,
+          },
+        }
+      );
+
+      expect(resJustCurta.valida).toBe(false);
+
+      const resComJustValida = WorkflowEngine.podeTransitar(
+        EstadoDemanda.EM_QUALIDADE_E_PREPARACAO,
+        EstadoDemanda.EM_MODELAGEM_E_ANALISE,
+        {
+          justificativa: 'Ciente de que a verificação de duplicidade foi limitada pelo guardrail de 300k linhas.',
+          qualityGate: {
+            decisao: 'LIBERADO_COM_RESSALVA',
+            liberado: true,
+            bloqueante: false,
+            exigeJustificativa: true,
+            motivo: 'Diagnóstico concluído parcialmente.',
+            detalhes: {} as any,
+          },
+        }
+      );
+
+      expect(resComJustValida.valida).toBe(true);
+      expect(() =>
+        WorkflowEngine.validarTransicao(
+          EstadoDemanda.EM_QUALIDADE_E_PREPARACAO,
+          EstadoDemanda.EM_MODELAGEM_E_ANALISE,
+          {
+            justificativa: 'Ciente de que a verificação de duplicidade foi limitada pelo guardrail de 300k linhas.',
+            qualityGate: {
+              decisao: 'LIBERADO_COM_RESSALVA',
+              liberado: true,
+              bloqueante: false,
+              exigeJustificativa: true,
+              motivo: 'Diagnóstico concluído parcialmente.',
+              detalhes: {} as any,
+            },
+          }
+        )
+      ).not.toThrow();
+    });
+
+    it('deve permitir avanço direto quando o Quality Gate estiver liberado sem ressalva', () => {
+      const res = WorkflowEngine.podeTransitar(
+        EstadoDemanda.EM_QUALIDADE_E_PREPARACAO,
+        EstadoDemanda.EM_MODELAGEM_E_ANALISE,
+        {
+          qualityGate: {
+            decisao: 'LIBERADO',
+            liberado: true,
+            bloqueante: false,
+            exigeJustificativa: false,
+            motivo: 'Todos os problemas deliberados e tratados.',
+            detalhes: {} as any,
+          },
+        }
+      );
+
+      expect(res.valida).toBe(true);
     });
   });
 });
