@@ -41,5 +41,42 @@ export const updateDemandSchema = z.object({
   data_conclusao: z.string().nullable().optional(),
 });
 
+export const transitionDemandSchema = z.object({
+  demandaId: z.string().min(1, 'ID da demanda é obrigatório.'),
+  novoEstado: z.nativeEnum(EstadoDemanda, { message: 'Estado informado não é válido.' }),
+  justificativa: z.string().trim().max(1000).optional().nullable(),
+});
+
+export const suspendDemandSchema = z.object({
+  demandaId: z.string().min(1, 'ID da demanda é obrigatório.'),
+  justificativa: z
+    .string()
+    .trim()
+    .min(5, { message: 'A justificativa de suspensão deve conter no mínimo 5 caracteres.' })
+    .max(1000, { message: 'A justificativa deve ter no máximo 1000 caracteres.' }),
+});
+
+export const resumeDemandSchema = z.object({
+  demandaId: z.string().min(1, 'ID da demanda é obrigatório.'),
+  justificativa: z
+    .string()
+    .trim()
+    .min(5, { message: 'A justificativa de retomada deve conter no mínimo 5 caracteres.' })
+    .max(1000, { message: 'A justificativa deve ter no máximo 1000 caracteres.' }),
+});
+
+export const cancelDemandSchema = z.object({
+  demandaId: z.string().min(1, 'ID da demanda é obrigatório.'),
+  justificativa: z
+    .string()
+    .trim()
+    .min(5, { message: 'A justificativa de cancelamento deve conter no mínimo 5 caracteres.' })
+    .max(1000, { message: 'A justificativa deve ter no máximo 1000 caracteres.' }),
+});
+
 export type CreateDemandInput = z.input<typeof createDemandSchema>;
 export type UpdateDemandInput = z.input<typeof updateDemandSchema>;
+export type TransitionDemandInput = z.input<typeof transitionDemandSchema>;
+export type SuspendDemandInput = z.input<typeof suspendDemandSchema>;
+export type ResumeDemandInput = z.input<typeof resumeDemandSchema>;
+export type CancelDemandInput = z.input<typeof cancelDemandSchema>;

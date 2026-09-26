@@ -40,8 +40,8 @@ export const projetos = sqliteTable('projetos', {
 });
 
 /**
- * Demandas (V1 — Bloco 1)
- * Unidade atômica de trabalho profissional no pipeline.
+ * Demandas (V1 — Bloco 1 e Bloco 2)
+ * Unidade atômica de trabalho profissional no pipeline com suporte a workflow.
  * Cardinalidade: Projeto 1 → N Demandas.
  */
 export const demandas = sqliteTable('demandas', {
@@ -55,10 +55,29 @@ export const demandas = sqliteTable('demandas', {
   objetivo_inicial: text('objetivo_inicial'),
   prazo_esperado: text('prazo_esperado'),
   restricoes_declaradas: text('restricoes_declaradas'),
-  estado: text('estado').notNull().default('BACKLOG'),
+  estado: text('estado').notNull().default('NOVA'),
+  estado_anterior: text('estado_anterior'),
   criado_em: text('criado_em').notNull(),
   atualizado_em: text('atualizado_em').notNull(),
   data_conclusao: text('data_conclusao'),
+});
+
+/**
+ * Trilha de Auditoria (V1 — Bloco 2 / ADR-002 Seção 4.5 e 10.1)
+ * Registra mutações críticas, eventos do workflow e justificativas com timestamp ISO 8601 em UTC.
+ */
+export const trilhaAuditoria = sqliteTable('trilha_auditoria', {
+  id: text('id').primaryKey(),
+  demanda_id: text('demanda_id')
+    .references(() => demandas.id, { onDelete: 'cascade' }),
+  entidade: text('entidade').notNull(),
+  entidade_id: text('entidade_id').notNull(),
+  tipo_evento: text('tipo_evento').notNull(),
+  autor_tipo: text('autor_tipo').notNull(),
+  dados_anteriores: text('dados_anteriores'),
+  dados_novos: text('dados_novos'),
+  justificativa: text('justificativa'),
+  timestamp: text('timestamp').notNull(),
 });
 
 /**
@@ -68,9 +87,17 @@ export const projetosRelations = relations(projetos, ({ many }) => ({
   demandas: many(demandas),
 }));
 
-export const demandasRelations = relations(demandas, ({ one }) => ({
+export const demandasRelations = relations(demandas, ({ one, many }) => ({
   projeto: one(projetos, {
     fields: [demandas.projeto_id],
     references: [projetos.id],
+  }),
+  auditorias: many(trilhaAuditoria),
+}));
+
+export const trilhaAuditoriaRelations = relations(trilhaAuditoria, ({ one }) => ({
+  demanda: one(demandas, {
+    fields: [trilhaAuditoria.demanda_id],
+    references: [demandas.id],
   }),
 }));

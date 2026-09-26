@@ -73,10 +73,10 @@ test.describe('E2E: Jornada Funcional Completa do Bloco 1 (Projetos + Demandas +
     await expect(workspaceTitle).toBeVisible();
     await expect(workspaceTitle).toHaveText(demandTitle);
 
-    // Confirma estado inicial BACKLOG
+    // Confirma estado inicial Nova (Normativo do Bloco 2)
     const workspaceState = page.getByTestId('demand-workspace-state');
     await expect(workspaceState).toBeVisible();
-    await expect(workspaceState).toHaveText('BACKLOG');
+    await expect(workspaceState).toHaveText(/Nova|NOVA/i);
 
     // Confirma solicitação bruta preservada na aba Visão Geral
     const rawRequestDisplay = page.getByTestId('demand-raw-request');

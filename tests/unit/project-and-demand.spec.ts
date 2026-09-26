@@ -151,10 +151,10 @@ describe('Unit Tests: Regras de Domínio e Casos de Uso (Bloco 1)', () => {
     expect(dem.id).toContain('dem_');
     expect(dem.projeto_id).toBe(proj.id);
     expect(dem.titulo).toBe('Análise de Rotas de Entrega');
-    expect(dem.estado).toBe(EstadoDemanda.BACKLOG);
+    expect(dem.estado).toBe(EstadoDemanda.NOVA);
   });
 
-  it('deve garantir que o estado inicial de qualquer Demanda seja estritamente BACKLOG', async () => {
+  it('deve garantir que o estado inicial de qualquer Demanda seja estritamente NOVA', async () => {
     const proj = await createProject.execute({ nome: 'Projeto Vendas' });
     const dem = await createDemand.execute({
       projeto_id: proj.id,
@@ -162,7 +162,7 @@ describe('Unit Tests: Regras de Domínio e Casos de Uso (Bloco 1)', () => {
       solicitacao_bruta: 'Necessitamos de visão consolidada mensal de vendas.',
     });
 
-    expect(dem.estado).toBe(EstadoDemanda.BACKLOG);
+    expect(dem.estado).toBe(EstadoDemanda.NOVA);
   });
 
   it('deve rejeitar criação de Demanda sem Projeto válido existente', async () => {
@@ -201,6 +201,48 @@ describe('Unit Tests: Regras de Domínio e Casos de Uso (Bloco 1)', () => {
 
     expect(updated.titulo).toBe('Demanda Título Atualizado');
     expect(updated.contexto).toBe('Contexto de negócio adicionado posteriormente');
+  });
+
+  it('deve impedir atualização de Demanda no estado CANCELADA (congelamento de histórico)', async () => {
+    const proj = await createProject.execute({ nome: 'Projeto Ativo' });
+    const dem = await createDemand.execute({
+      projeto_id: proj.id,
+      titulo: 'Demanda Cancelada',
+      solicitacao_bruta: 'Solicitação que será cancelada.',
+    });
+
+    // Simula estado cancelado na persistência
+    await demandRepo.update(dem.id, {
+      estado: EstadoDemanda.CANCELADA,
+      data_conclusao: new Date().toISOString(),
+    });
+
+    await expect(
+      updateDemand.execute(dem.id, {
+        titulo: 'Tentativa Ilegal de Alteração',
+      })
+    ).rejects.toThrow(/Demandas canceladas possuem histórico congelado/);
+  });
+
+  it('deve impedir atualização de Demanda no estado CONCLUIDA (congelamento de histórico)', async () => {
+    const proj = await createProject.execute({ nome: 'Projeto Ativo' });
+    const dem = await createDemand.execute({
+      projeto_id: proj.id,
+      titulo: 'Demanda Concluída',
+      solicitacao_bruta: 'Solicitação que será concluída.',
+    });
+
+    // Simula estado concluído na persistência
+    await demandRepo.update(dem.id, {
+      estado: EstadoDemanda.CONCLUIDA,
+      data_conclusao: new Date().toISOString(),
+    });
+
+    await expect(
+      updateDemand.execute(dem.id, {
+        titulo: 'Tentativa Ilegal de Alteração em Demanda Concluída',
+      })
+    ).rejects.toThrow(/Demandas concluídas possuem histórico congelado/);
   });
 
   it('deve tratar e lançar erro ao tentar atualizar identificador inexistente', async () => {

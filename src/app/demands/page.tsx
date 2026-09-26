@@ -5,6 +5,7 @@ import { SqliteDemandRepository } from '@/infrastructure/db/repositories/demand-
 import { ListDemandsUseCase } from '@/core/use-cases/demands/list-demands';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { DemandStateBadge } from '@/components/ui/DemandStateBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
 
 export const dynamic = 'force-dynamic';
@@ -74,9 +75,7 @@ export default async function DemandsPage() {
                       </Link>
                     </td>
                     <td className="px-6 py-4">
-                      <Badge variant="default" testId={`badge-state-${demand.id}`}>
-                        {demand.estado}
-                      </Badge>
+                      <DemandStateBadge estado={demand.estado} testId={`badge-state-${demand.id}`} />
                     </td>
                     <td className="px-6 py-4 text-xs text-slate-400">
                       {new Date(demand.atualizado_em).toLocaleString('pt-BR')}

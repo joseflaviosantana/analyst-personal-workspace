@@ -16,6 +16,7 @@ import { SqliteDemandRepository } from '@/infrastructure/db/repositories/demand-
 import { GetProjectUseCase } from '@/core/use-cases/projects/get-project';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { DemandStateBadge } from '@/components/ui/DemandStateBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
 
 export const dynamic = 'force-dynamic';
@@ -182,9 +183,7 @@ export default async function ProjectDetailsPage({ params }: ProjectDetailsPageP
                 </div>
 
                 <div className="flex items-center gap-4">
-                  <Badge variant="default" testId={`badge-demand-state-${demand.id}`}>
-                    {demand.estado}
-                  </Badge>
+                  <DemandStateBadge estado={demand.estado} testId={`badge-demand-state-${demand.id}`} />
                   <Link
                     href={`/demands/${demand.id}`}
                     data-testid={`btn-open-workspace-${demand.id}`}

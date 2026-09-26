@@ -2,7 +2,7 @@ import { eq, desc, sql, notInArray } from 'drizzle-orm';
 import { db } from '../client';
 import { demandas, projetos } from '../schema';
 import { Demanda, DemandaComProjeto } from '@/core/domain/entities/demanda';
-import { EstadoDemanda } from '@/core/domain/enums/estado-demanda';
+import { EstadoDemanda, normalizarEstadoDemanda } from '@/core/domain/enums/estado-demanda';
 import { IDemandRepository } from '@/core/domain/repositories/demand-repository.interface';
 
 export class SqliteDemandRepository implements IDemandRepository {
@@ -39,7 +39,8 @@ export class SqliteDemandRepository implements IDemandRepository {
       objetivo_inicial: row.demanda.objetivo_inicial,
       prazo_esperado: row.demanda.prazo_esperado,
       restricoes_declaradas: row.demanda.restricoes_declaradas,
-      estado: row.demanda.estado as EstadoDemanda,
+      estado: normalizarEstadoDemanda(row.demanda.estado),
+      estado_anterior: row.demanda.estado_anterior ? normalizarEstadoDemanda(row.demanda.estado_anterior) : null,
       criado_em: row.demanda.criado_em,
       atualizado_em: row.demanda.atualizado_em,
       data_conclusao: row.demanda.data_conclusao,
@@ -64,7 +65,8 @@ export class SqliteDemandRepository implements IDemandRepository {
       objetivo_inicial: r.objetivo_inicial,
       prazo_esperado: r.prazo_esperado,
       restricoes_declaradas: r.restricoes_declaradas,
-      estado: r.estado as EstadoDemanda,
+      estado: normalizarEstadoDemanda(r.estado),
+      estado_anterior: r.estado_anterior ? normalizarEstadoDemanda(r.estado_anterior) : null,
       criado_em: r.criado_em,
       atualizado_em: r.atualizado_em,
       data_conclusao: r.data_conclusao,
@@ -91,7 +93,8 @@ export class SqliteDemandRepository implements IDemandRepository {
       objetivo_inicial: r.demanda.objetivo_inicial,
       prazo_esperado: r.demanda.prazo_esperado,
       restricoes_declaradas: r.demanda.restricoes_declaradas,
-      estado: r.demanda.estado as EstadoDemanda,
+      estado: normalizarEstadoDemanda(r.demanda.estado),
+      estado_anterior: r.demanda.estado_anterior ? normalizarEstadoDemanda(r.demanda.estado_anterior) : null,
       criado_em: r.demanda.criado_em,
       atualizado_em: r.demanda.atualizado_em,
       data_conclusao: r.demanda.data_conclusao,
@@ -120,7 +123,8 @@ export class SqliteDemandRepository implements IDemandRepository {
       objetivo_inicial: r.demanda.objetivo_inicial,
       prazo_esperado: r.demanda.prazo_esperado,
       restricoes_declaradas: r.demanda.restricoes_declaradas,
-      estado: r.demanda.estado as EstadoDemanda,
+      estado: normalizarEstadoDemanda(r.demanda.estado),
+      estado_anterior: r.demanda.estado_anterior ? normalizarEstadoDemanda(r.demanda.estado_anterior) : null,
       criado_em: r.demanda.criado_em,
       atualizado_em: r.demanda.atualizado_em,
       data_conclusao: r.demanda.data_conclusao,

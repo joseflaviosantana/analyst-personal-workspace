@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { 
   ArrowLeft, 
   Edit3, 
@@ -11,19 +12,82 @@ import {
   ShieldAlert, 
   Target,
   FileCode2,
-  Info
+  Info,
+  ArrowRight,
+  PauseCircle,
+  PlayCircle,
+  XCircle,
+  CheckCircle2,
+  AlertTriangle,
+  X
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { DemandaComProjeto } from '@/core/domain/entities/demanda';
+import { TrilhaAuditoria } from '@/core/domain/entities/trilha-auditoria';
+import { 
+  EstadoDemanda, 
+  ROTULOS_ESTADO_DEMANDA, 
+  isEstadoTerminal,
+  normalizarEstadoDemanda 
+} from '@/core/domain/enums/estado-demanda';
+import { WorkflowEngine } from '@/core/domain/rules/workflow-engine';
 import { Card } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
+import { DemandStateBadge } from '@/components/ui/DemandStateBadge';
+import { SuspendDemandModal } from '@/components/workflow/SuspendDemandModal';
+import { ResumeDemandModal } from '@/components/workflow/ResumeDemandModal';
+import { CancelDemandModal } from '@/components/workflow/CancelDemandModal';
+import { TimelineView } from '@/components/workflow/TimelineView';
+import { advanceDemandAction } from '@/app/actions/workflow-actions';
 
 interface DemandWorkspaceViewProps {
   demand: DemandaComProjeto;
+  timeline?: TrilhaAuditoria[];
 }
 
-export function DemandWorkspaceView({ demand }: DemandWorkspaceViewProps) {
+export function DemandWorkspaceView({ demand, timeline = [] }: DemandWorkspaceViewProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'overview' | string>('overview');
+  const [isAdvancing, setIsAdvancing] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Modais de Governança
+  const [isSuspendModalOpen, setIsSuspendModalOpen] = useState(false);
+  const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+
+  const estadoAtual = normalizarEstadoDemanda(demand.estado);
+  const isSuspensa = estadoAtual === EstadoDemanda.SUSPENSA;
+  const isConcluida = estadoAtual === EstadoDemanda.CONCLUIDA;
+  const isCancelada = estadoAtual === EstadoDemanda.CANCELADA;
+  const isTerminal = isEstadoTerminal(estadoAtual);
+  const proximoEstado = WorkflowEngine.proximoEstadoNormal(estadoAtual);
+
+  const handleAdvance = async () => {
+    if (!proximoEstado) return;
+    setIsAdvancing(true);
+    setFeedback(null);
+    try {
+      const res = await advanceDemandAction(demand.id);
+      if (!res.success) {
+        setFeedback({ type: 'error', message: res.error || 'Erro ao avançar estado.' });
+      } else {
+        setFeedback({ 
+          type: 'success', 
+          message: `Demanda avançada com sucesso para ${ROTULOS_ESTADO_DEMANDA[proximoEstado]}.` 
+        });
+        router.refresh();
+      }
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err?.message || 'Erro inesperado.' });
+    } finally {
+      setIsAdvancing(false);
+    }
+  };
+
+  const handleModalSuccess = (msg: string) => {
+    setFeedback({ type: 'success', message: msg });
+    router.refresh();
+  };
 
   const tabs = [
     { id: 'overview', label: '1. Visão Geral', ready: true },
@@ -41,7 +105,7 @@ export function DemandWorkspaceView({ demand }: DemandWorkspaceViewProps) {
 
   return (
     <div className="space-y-6 max-w-6xl">
-      {/* Sticky Context Header do Workspace */}
+      {/* Sticky Context Header do Workspace (UX Spec 4 / ADR-002) */}
       <div 
         data-testid="demand-sticky-header"
         className="rounded-xl border border-slate-800 bg-slate-900/90 p-5 shadow-lg backdrop-blur-md sticky top-0 z-20"
@@ -72,24 +136,115 @@ export function DemandWorkspaceView({ demand }: DemandWorkspaceViewProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Badge de Estado Atual */}
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-400">Estado:</span>
-              <Badge variant="default" testId="demand-workspace-state">
-                {demand.estado}
-              </Badge>
+              <DemandStateBadge 
+                estado={demand.estado} 
+                testId="demand-workspace-state" 
+              />
             </div>
 
-            <Link
-              href={`/demands/${demand.id}/edit`}
-              data-testid="btn-edit-demand"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700 hover:text-white transition-colors"
-            >
-              <Edit3 className="h-3.5 w-3.5" />
-              <span>Editar Demanda</span>
-            </Link>
+            {/* Ações Operacionais de Governança de Workflow */}
+            {!isConcluida && !isCancelada && !isSuspensa && proximoEstado && (
+              <button
+                type="button"
+                onClick={handleAdvance}
+                disabled={isAdvancing}
+                data-testid="btn-advance-state"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-500 disabled:opacity-50 transition-colors"
+                title={`Avançar para ${ROTULOS_ESTADO_DEMANDA[proximoEstado]}`}
+              >
+                <span>{isAdvancing ? 'Avançando...' : `Avançar para ${ROTULOS_ESTADO_DEMANDA[proximoEstado]}`}</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            )}
+
+            {isSuspensa && (
+              <button
+                type="button"
+                onClick={() => setIsResumeModalOpen(true)}
+                data-testid="btn-resume-demand"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-500 transition-colors"
+              >
+                <PlayCircle className="h-3.5 w-3.5" />
+                <span>Retomar Demanda</span>
+              </button>
+            )}
+
+            {!isConcluida && !isCancelada && !isSuspensa && (
+              <button
+                type="button"
+                onClick={() => setIsSuspendModalOpen(true)}
+                data-testid="btn-suspend-demand"
+                className="inline-flex items-center gap-1 rounded-lg border border-amber-800/80 bg-amber-950/40 px-2.5 py-1.5 text-xs font-medium text-amber-300 hover:bg-amber-900/60 hover:text-white transition-colors"
+              >
+                <PauseCircle className="h-3.5 w-3.5" />
+                <span>Suspender</span>
+              </button>
+            )}
+
+            {!isConcluida && !isCancelada && (
+              <button
+                type="button"
+                onClick={() => setIsCancelModalOpen(true)}
+                data-testid="btn-cancel-demand"
+                className="inline-flex items-center gap-1 rounded-lg border border-rose-900/80 bg-rose-950/40 px-2.5 py-1.5 text-xs font-medium text-rose-300 hover:bg-rose-900/60 hover:text-white transition-colors"
+              >
+                <XCircle className="h-3.5 w-3.5" />
+                <span>Cancelar</span>
+              </button>
+            )}
+
+            {isConcluida && (
+              <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-950/80 border border-emerald-800/80 px-3 py-1.5 text-xs font-medium text-emerald-400">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                <span>Demanda Concluída</span>
+              </span>
+            )}
+
+            {isCancelada && (
+              <span className="inline-flex items-center gap-1 rounded-lg bg-rose-950/80 border border-rose-900/80 px-3 py-1.5 text-xs font-medium text-rose-400">
+                <XCircle className="h-3.5 w-3.5" />
+                <span>Demanda Cancelada</span>
+              </span>
+            )}
+
+            {!isTerminal && (
+              <Link
+                href={`/demands/${demand.id}/edit`}
+                data-testid="btn-edit-demand"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700 hover:text-white transition-colors"
+              >
+                <Edit3 className="h-3.5 w-3.5" />
+                <span>Editar</span>
+              </Link>
+            )}
           </div>
         </div>
+
+        {/* Banner de Feedback */}
+        {feedback && (
+          <div 
+            data-testid="workspace-feedback-alert"
+            className={clsx(
+              'mt-3 flex items-center justify-between rounded-lg p-2.5 text-xs border',
+              feedback.type === 'success'
+                ? 'bg-emerald-950/70 border-emerald-800 text-emerald-300'
+                : 'bg-rose-950/70 border-rose-800 text-rose-300'
+            )}
+          >
+            <span>{feedback.message}</span>
+            <button 
+              type="button"
+              onClick={() => setFeedback(null)}
+              className="hover:opacity-75"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
 
         {/* Faixa Compacta de Metadados */}
         <div className="mt-4 pt-3 border-t border-slate-800/80 flex flex-wrap items-center gap-6 text-xs text-slate-400">
@@ -107,6 +262,18 @@ export function DemandWorkspaceView({ demand }: DemandWorkspaceViewProps) {
             <Clock className="h-3.5 w-3.5 text-slate-500" />
             <span>Atualizado: {new Date(demand.atualizado_em).toLocaleString('pt-BR')}</span>
           </div>
+          {demand.data_conclusao && isConcluida && (
+            <div className="flex items-center gap-1.5 text-emerald-400" data-testid="metadata-conclusion-date">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              <span>Conclusão: {new Date(demand.data_conclusao).toLocaleDateString('pt-BR')}</span>
+            </div>
+          )}
+          {demand.data_conclusao && isCancelada && (
+            <div className="flex items-center gap-1.5 text-rose-400" data-testid="metadata-cancellation-date">
+              <XCircle className="h-3.5 w-3.5" />
+              <span>Cancelada em: {new Date(demand.data_conclusao).toLocaleDateString('pt-BR')}</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -140,6 +307,9 @@ export function DemandWorkspaceView({ demand }: DemandWorkspaceViewProps) {
       {/* Conteúdo da Aba Selecionada */}
       {activeTab === 'overview' ? (
         <div className="space-y-6" data-testid="tab-content-overview">
+          {/* Trilha de Auditoria & Linha do Tempo do Workflow (CF-22 / ADR-002) */}
+          <TimelineView timeline={timeline} />
+
           {/* Solicitação Bruta Original */}
           <Card className="p-6">
             <div className="flex items-center gap-2 mb-3 text-xs font-semibold uppercase tracking-wider text-slate-300">
@@ -213,6 +383,32 @@ export function DemandWorkspaceView({ demand }: DemandWorkspaceViewProps) {
           </div>
         </Card>
       )}
+
+      {/* Modais de Governança de Workflow */}
+      <SuspendDemandModal
+        isOpen={isSuspendModalOpen}
+        onClose={() => setIsSuspendModalOpen(false)}
+        demandaId={demand.id}
+        demandaTitulo={demand.titulo}
+        onSuccess={() => handleModalSuccess(`Demanda "${demand.titulo}" suspensa com sucesso.`)}
+      />
+
+      <ResumeDemandModal
+        isOpen={isResumeModalOpen}
+        onClose={() => setIsResumeModalOpen(false)}
+        demandaId={demand.id}
+        demandaTitulo={demand.titulo}
+        estadoAnterior={demand.estado_anterior}
+        onSuccess={() => handleModalSuccess(`Demanda "${demand.titulo}" retomada com sucesso.`)}
+      />
+
+      <CancelDemandModal
+        isOpen={isCancelModalOpen}
+        onClose={() => setIsCancelModalOpen(false)}
+        demandaId={demand.id}
+        demandaTitulo={demand.titulo}
+        onSuccess={() => handleModalSuccess(`Demanda "${demand.titulo}" cancelada com sucesso.`)}
+      />
     </div>
   );
 }

@@ -10,6 +10,7 @@ export interface Demanda {
   prazo_esperado: string | null;
   restricoes_declaradas: string | null;
   estado: EstadoDemanda;
+  estado_anterior?: EstadoDemanda | string | null;
   criado_em: string;
   atualizado_em: string;
   data_conclusao: string | null;

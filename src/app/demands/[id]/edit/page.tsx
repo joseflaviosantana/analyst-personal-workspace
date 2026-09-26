@@ -1,6 +1,7 @@
 import React from 'react';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { SqliteDemandRepository } from '@/infrastructure/db/repositories/demand-repository';
+import { isEstadoTerminal } from '@/core/domain/enums/estado-demanda';
 import { EditDemandForm } from './edit-form';
 
 export const dynamic = 'force-dynamic';
@@ -16,6 +17,11 @@ export default async function EditDemandPage({ params }: EditDemandPageProps) {
 
   if (!demand) {
     notFound();
+  }
+
+  // Demandas em estados terminais (concluídas ou canceladas) possuem histórico congelado: não permite edição
+  if (isEstadoTerminal(demand.estado)) {
+    redirect(`/demands/${id}`);
   }
 
   return <EditDemandForm demand={demand} />;

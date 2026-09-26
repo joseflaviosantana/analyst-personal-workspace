@@ -3,13 +3,15 @@
 import { revalidatePath } from 'next/cache';
 import { SqliteDemandRepository } from '@/infrastructure/db/repositories/demand-repository';
 import { SqliteProjectRepository } from '@/infrastructure/db/repositories/project-repository';
+import { SqliteAuditRepository } from '@/infrastructure/db/repositories/audit-repository';
 import { CreateDemandUseCase } from '@/core/use-cases/demands/create-demand';
 import { UpdateDemandUseCase } from '@/core/use-cases/demands/update-demand';
 import { CreateDemandInput, UpdateDemandInput } from '@/lib/validations/demand-schema';
 
 const demandRepo = new SqliteDemandRepository();
 const projectRepo = new SqliteProjectRepository();
-const createDemandUseCase = new CreateDemandUseCase(demandRepo, projectRepo);
+const auditRepo = new SqliteAuditRepository();
+const createDemandUseCase = new CreateDemandUseCase(demandRepo, projectRepo, auditRepo);
 const updateDemandUseCase = new UpdateDemandUseCase(demandRepo);
 
 export async function createDemandAction(data: CreateDemandInput) {

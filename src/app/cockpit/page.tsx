@@ -13,6 +13,7 @@ import { SqliteDemandRepository } from '@/infrastructure/db/repositories/demand-
 import { GetCockpitSummaryUseCase } from '@/core/use-cases/cockpit/get-cockpit-summary';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { DemandStateBadge } from '@/components/ui/DemandStateBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
 
 export const dynamic = 'force-dynamic';
@@ -176,9 +177,7 @@ export default async function CockpitPage() {
                             {demanda.projetoNome}
                           </td>
                           <td className="px-6 py-4">
-                            <Badge variant="default" testId={`badge-state-${demanda.id}`}>
-                              {demanda.estado}
-                            </Badge>
+                            <DemandStateBadge estado={demanda.estado} testId={`badge-state-${demanda.id}`} />
                           </td>
                           <td className="px-6 py-4 text-xs text-slate-400">
                             {new Date(demanda.atualizado_em).toLocaleString('pt-BR')}

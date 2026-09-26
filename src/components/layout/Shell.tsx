@@ -32,6 +32,13 @@ export function Shell({ children }: ShellProps) {
       testId: 'nav-cockpit',
     },
     {
+      name: 'Pipeline Kanban',
+      href: '/pipeline',
+      icon: Layers,
+      active: pathname.startsWith('/pipeline'),
+      testId: 'nav-pipeline',
+    },
+    {
       name: 'Projetos',
       href: '/projects',
       icon: FolderKanban,
@@ -48,11 +55,6 @@ export function Shell({ children }: ShellProps) {
   ];
 
   const plannedNavItems = [
-    {
-      name: 'Pipeline Kanban',
-      badge: 'Bloco 2',
-      icon: Layers,
-    },
     {
       name: 'Aprovações',
       badge: 'Bloco 5',
