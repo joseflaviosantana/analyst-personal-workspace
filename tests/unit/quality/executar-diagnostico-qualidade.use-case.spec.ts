@@ -83,6 +83,10 @@ describe('ExecutarDiagnosticoQualidadeUseCase (Subunidade 3.4A)', () => {
     };
 
     mockProblemasRepo = {
+      create: async (p) => {
+        problemasDb.set(p.id, p);
+        return p;
+      },
       createMany: async (pList) => {
         for (const p of pList) {
           problemasDb.set(p.id, p);
@@ -266,5 +270,84 @@ describe('ExecutarDiagnosticoQualidadeUseCase (Subunidade 3.4A)', () => {
     const diagNoBanco = await mockDiagnosticosRepo.findById(resultado.diagnostico.id);
     expect(diagNoBanco).toBeDefined();
     expect(diagNoBanco?.status_execucao).toBe(StatusExecucaoDiagnostico.FALHA);
+  });
+
+  it('deve avaliar regras de negócio ativas conjuntamente com o scanner e persistir tudo atomicamente', async () => {
+    const csvContent = 'id,idade\n1,25\n2,150\n3,30\n'; // Idade 150 viola regra max 120
+    const csvPath = path.join(tmpDir, 'teste-com-regras.csv');
+    fs.writeFileSync(csvContent ? csvPath : '', csvContent, 'utf-8');
+
+    const ativo: AtivoDados = {
+      id: 'ativo-com-regras',
+      demanda_id: 'demanda-uc-regras',
+      nome_arquivo: 'teste-com-regras.csv',
+      caminho_local: csvPath,
+      formato: FormatoArquivo.CSV,
+      origem: null,
+      descricao_conteudo: null,
+      granularidade: null,
+      periodo_inicio: null,
+      periodo_fim: null,
+      versao: 'v1.0',
+      tamanho_bytes: csvContent.length,
+      total_linhas: 3,
+      total_colunas: 2,
+      hash_sha256: 'hash-regras',
+      status: StatusAtivoDados.ATIVO,
+      schema_inferido: JSON.stringify({ id: 'number', idade: 'number' }),
+      data_recebimento: new Date().toISOString(),
+      criado_em: new Date().toISOString(),
+      atualizado_em: new Date().toISOString(),
+    };
+
+    await mockAtivosRepo.create(ativo);
+
+    const mockRegrasRepo = {
+      create: async () => {},
+      findById: async () => null,
+      findByAssetId: async () => [
+        {
+          id: 'regra-idade-max',
+          ativo_dados_id: ativo.id,
+          tipo: 'VALOR_MIN_MAX' as any,
+          coluna: 'idade',
+          colunas: ['idade'],
+          nome: 'Idade Máxima 120',
+          descricao: 'Idade humana plausível',
+          parametros: {
+            tipo: 'VALOR_MIN_MAX' as any,
+            maximo: 120,
+          },
+          status: 'ATIVA' as any,
+          versao: 1,
+          criado_em: new Date().toISOString(),
+          atualizado_em: new Date().toISOString(),
+        },
+      ],
+      update: async () => {},
+    };
+
+    const useCase = new ExecutarDiagnosticoQualidadeUseCase(
+      mockAtivosRepo,
+      mockDiagnosticosRepo,
+      mockProblemasRepo,
+      mockRegrasRepo as any
+    );
+
+    const resultado = await useCase.execute({ ativoDadosId: ativo.id });
+
+    expect(resultado.diagnostico.status_execucao).toBe(StatusExecucaoDiagnostico.CONCLUIDO);
+    // Deve conter o problema da regra de negócio (idade 150 > 120)
+    const probRegra = resultado.problemas.find((p) => p.regra_id === 'regra-idade-max');
+    expect(probRegra).toBeDefined();
+    expect(probRegra?.severidade).toBe(SeveridadeProblema.PENDENTE);
+    expect(probRegra?.total_linhas_afetadas).toBe(1);
+    expect(probRegra?.regra_snapshot?.versao).toBe(1);
+
+    // Deve conter a verificação de regras no diagnóstico
+    const verifRegra = resultado.diagnostico.verificacoes_executadas.find(
+      (v) => v.nome === 'Avaliação de Regras de Negócio'
+    );
+    expect(verifRegra).toBeDefined();
   });
 });

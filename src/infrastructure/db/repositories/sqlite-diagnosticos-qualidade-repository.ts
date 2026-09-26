@@ -179,6 +179,8 @@ export class SqliteDiagnosticosQualidadeRepository implements IDiagnosticosQuali
           deliberado_em: p.deliberado_em,
           status: p.status,
           origem_deteccao: p.origem_deteccao,
+          regra_id: p.regra_id ?? null,
+          regra_snapshot: p.regra_snapshot ? JSON.stringify(p.regra_snapshot) : null,
           criado_em: p.criado_em,
           atualizado_em: p.atualizado_em,
         }));

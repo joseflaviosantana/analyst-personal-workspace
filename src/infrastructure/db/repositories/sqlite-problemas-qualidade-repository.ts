@@ -24,6 +24,15 @@ export class SqliteProblemasQualidadeRepository implements IProblemasQualidadeRe
       }
     }
 
+    let regraSnapshot = null;
+    if (row.regra_snapshot) {
+      try {
+        regraSnapshot = JSON.parse(row.regra_snapshot);
+      } catch {
+        regraSnapshot = null;
+      }
+    }
+
     return {
       id: row.id,
       diagnostico_id: row.diagnostico_id,
@@ -45,9 +54,16 @@ export class SqliteProblemasQualidadeRepository implements IProblemasQualidadeRe
       deliberado_em: row.deliberado_em,
       status: row.status as StatusProblemaQualidade,
       origem_deteccao: row.origem_deteccao as 'AUTOMATICA' | 'MANUAL',
+      regra_id: row.regra_id,
+      regra_snapshot: regraSnapshot,
       criado_em: row.criado_em,
       atualizado_em: row.atualizado_em,
     };
+  }
+
+  async create(problema: ProblemaQualidade): Promise<ProblemaQualidade> {
+    await this.createMany([problema]);
+    return problema;
   }
 
   async createMany(problemas: ProblemaQualidade[]): Promise<ProblemaQualidade[]> {
@@ -74,6 +90,8 @@ export class SqliteProblemasQualidadeRepository implements IProblemasQualidadeRe
       deliberado_em: p.deliberado_em,
       status: p.status,
       origem_deteccao: p.origem_deteccao,
+      regra_id: p.regra_id ?? null,
+      regra_snapshot: p.regra_snapshot ? JSON.stringify(p.regra_snapshot) : null,
       criado_em: p.criado_em,
       atualizado_em: p.atualizado_em,
     }));

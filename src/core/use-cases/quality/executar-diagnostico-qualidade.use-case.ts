@@ -2,14 +2,20 @@ import crypto from 'node:crypto';
 import { IAtivoDadosRepository } from '@/core/domain/repositories/ativo-dados-repository.interface';
 import { IDiagnosticosQualidadeRepository } from '@/core/domain/repositories/diagnosticos-qualidade-repository.interface';
 import { IProblemasQualidadeRepository } from '@/core/domain/repositories/problemas-qualidade-repository.interface';
+import { IRegrasQualidadeRepository } from '@/core/domain/repositories/regras-qualidade-repository.interface';
 import { DiagnosticoQualidade } from '@/core/domain/entities/diagnostico-qualidade';
 import { ProblemaQualidade } from '@/core/domain/entities/problema-qualidade';
+import { CategoriaProblemaQualidade } from '@/core/domain/enums/categoria-problema-qualidade';
 import { StatusExecucaoDiagnostico } from '@/core/domain/enums/status-execucao-diagnostico';
+import { StatusRegraQualidade } from '@/core/domain/enums/status-regra-qualidade';
+import { StatusVerificacaoQualidade } from '@/core/domain/enums/status-verificacao-qualidade';
 import { DeterministicQualityScanner } from '@/infrastructure/quality/deterministic-quality-scanner';
+import { BusinessRulesEvaluator } from '@/infrastructure/quality/business-rules-evaluator';
 
 export interface ExecutarDiagnosticoInput {
   ativoDadosId: string;
   abaAlvoXlsx?: string;
+  dataReferencia?: Date; // Injetável para controle de regras temporais determinísticas
 }
 
 export interface ExecutarDiagnosticoOutput {
@@ -21,7 +27,8 @@ export class ExecutarDiagnosticoQualidadeUseCase {
   constructor(
     private ativoDadosRepo: IAtivoDadosRepository,
     private diagnosticosRepo: IDiagnosticosQualidadeRepository,
-    private problemasRepo: IProblemasQualidadeRepository
+    private problemasRepo: IProblemasQualidadeRepository,
+    private regrasRepo?: IRegrasQualidadeRepository
   ) {}
 
   async execute(input: ExecutarDiagnosticoInput): Promise<ExecutarDiagnosticoOutput> {
@@ -64,7 +71,7 @@ export class ExecutarDiagnosticoQualidadeUseCase {
       }
     }
 
-    // 2. Executa a varredura determinística
+    // 2. Executa a varredura determinística estrutural (3.4A)
     try {
       const resultadoScanner = await DeterministicQualityScanner.escanear({
         diagnosticoId,
@@ -90,7 +97,46 @@ export class ExecutarDiagnosticoQualidadeUseCase {
         return { diagnostico, problemas: [] };
       }
 
-      // 3 e 4. Persiste problemas e conclui diagnóstico atomicamente sob transação SQLite
+      let todosProblemas = [...resultadoScanner.problemas];
+      const verificacoes = [...resultadoScanner.verificacoes];
+      const metricas = { ...resultadoScanner.resumoMetricas };
+
+      // 3. Avaliação de Regras Humanas/de Negócio (3.4B) se houver regras ativas
+      if (this.regrasRepo) {
+        const regrasAtivas = await this.regrasRepo.findByAssetId(ativo.id, StatusRegraQualidade.ATIVA);
+        if (regrasAtivas.length > 0) {
+          const resultadoRegras = await BusinessRulesEvaluator.avaliar({
+            diagnosticoId,
+            ativoDadosId: ativo.id,
+            demandaId: ativo.demanda_id,
+            tabelaNome: ativo.nome_arquivo,
+            caminhoArquivo: ativo.caminho_local,
+            formato: ativo.formato,
+            regras: regrasAtivas,
+            abaAlvoXlsx: input.abaAlvoXlsx,
+            dataReferencia: input.dataReferencia,
+          });
+
+          todosProblemas = [...todosProblemas, ...resultadoRegras.problemas];
+
+          verificacoes.push({
+            categoria: CategoriaProblemaQualidade.REGRA_NEGOCIO_VIOLADA,
+            nome: 'Avaliação de Regras de Negócio',
+            status: resultadoRegras.totalRegrasVioladas === 0
+              ? StatusVerificacaoQualidade.EXECUTADA_SEM_PROBLEMAS
+              : StatusVerificacaoQualidade.EXECUTADA_COM_PROBLEMAS,
+            totalProblemas: resultadoRegras.totalRegrasVioladas,
+            observacao: `${resultadoRegras.totalRegrasAvaliadas} regra(s) ativa(s) avaliada(s). ${resultadoRegras.totalRegrasVioladas} com violações detectadas.`,
+          });
+
+          metricas.totalRegrasAvaliadas = resultadoRegras.totalRegrasAvaliadas;
+          metricas.totalRegrasVioladas = resultadoRegras.totalRegrasVioladas;
+        }
+      }
+
+      metricas.totalProblemasDetectados = todosProblemas.length;
+
+      // 4. Persiste problemas e conclui diagnóstico atomicamente sob transação SQLite
       const conclusaoTransacional = await this.diagnosticosRepo.salvarConclusaoTransacional(
         diagnosticoId,
         {
@@ -98,13 +144,13 @@ export class ExecutarDiagnosticoQualidadeUseCase {
           duracao_ms: duracaoMs,
           total_linhas_avaliadas: resultadoScanner.totalLinhas,
           total_colunas_avaliadas: resultadoScanner.totalColunas,
-          verificacoes_executadas: resultadoScanner.verificacoes,
-          total_problemas_detectados: resultadoScanner.problemas.length,
+          verificacoes_executadas: verificacoes,
+          total_problemas_detectados: todosProblemas.length,
           status_execucao: resultadoScanner.statusExecucao,
-          resumo_metricas: resultadoScanner.resumoMetricas,
+          resumo_metricas: metricas,
           erro_mensagem: null,
         },
-        resultadoScanner.problemas
+        todosProblemas
       );
 
       return conclusaoTransacional;

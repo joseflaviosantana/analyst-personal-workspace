@@ -10,6 +10,8 @@ export enum CategoriaProblemaQualidade {
   DATAS_INVALIDAS = 'DATAS_INVALIDAS',
   NUMEROS_INVALIDOS = 'NUMEROS_INVALIDOS',
   CABECALHOS_PROBLEMATICOS = 'CABECALHOS_PROBLEMATICOS',
+  REGRA_NEGOCIO_VIOLADA = 'REGRA_NEGOCIO_VIOLADA',
+  ANOMALIA_MANUAL_DECLARADA = 'ANOMALIA_MANUAL_DECLARADA',
 }
 
 export const ROTULOS_CATEGORIA_PROBLEMA_QUALIDADE: Record<CategoriaProblemaQualidade, string> = {
@@ -20,4 +22,6 @@ export const ROTULOS_CATEGORIA_PROBLEMA_QUALIDADE: Record<CategoriaProblemaQuali
   [CategoriaProblemaQualidade.DATAS_INVALIDAS]: 'Datas Inválidas ou Corrompidas',
   [CategoriaProblemaQualidade.NUMEROS_INVALIDOS]: 'Números Inválidos ou NaN',
   [CategoriaProblemaQualidade.CABECALHOS_PROBLEMATICOS]: 'Cabeçalhos Problemáticos',
+  [CategoriaProblemaQualidade.REGRA_NEGOCIO_VIOLADA]: 'Violação de Regra de Negócio',
+  [CategoriaProblemaQualidade.ANOMALIA_MANUAL_DECLARADA]: 'Anomalia Registrada Manualmente',
 };

@@ -145,10 +145,37 @@ export const diagnosticosQualidade = sqliteTable('diagnosticos_qualidade', {
  * Anomalias e inconsistências factuais detectadas pelo scanner ou registradas pelo analista.
  * Cardinalidade: DiagnosticoQualidade 1 → N ProblemasQualidade.
  */
+/**
+ * Regras de Qualidade de Dados (V1 — Subunidade 3.4B / FSD RF-018 e ADR-002)
+ * Regras de negócio declaradas pelo analista humano para avaliação determinística sobre um ativo.
+ * Não possui exclusão física. Ciclo de vida: ATIVA <-> INATIVA.
+ * Cardinalidade: AtivoDados 1 → N RegrasQualidade.
+ */
+export const regrasQualidade = sqliteTable('regras_qualidade', {
+  id: text('id').primaryKey(),
+  ativo_dados_id: text('ativo_dados_id')
+    .notNull()
+    .references(() => ativosDados.id, { onDelete: 'cascade' }),
+  tipo: text('tipo').notNull(),
+  coluna: text('coluna'),
+  colunas: text('colunas').notNull().default('[]'),
+  nome: text('nome').notNull(),
+  descricao: text('descricao'),
+  parametros: text('parametros').notNull().default('{}'),
+  status: text('status').notNull().default('ATIVA'),
+  versao: integer('versao').notNull().default(1),
+  criado_em: text('criado_em').notNull(),
+  atualizado_em: text('atualizado_em').notNull(),
+});
+
+/**
+ * Problemas de Qualidade (V1 — Subunidades 3.4A e 3.4B / FSD CF-07 / RF-018 a RF-022)
+ * Anomalias e inconsistências factuais detectadas pelo scanner, violações de regras ou registradas pelo analista.
+ * Cardinalidade: DiagnosticoQualidade 0..1 → N ProblemasQualidade (diagnostico_id é anulável para problemas manuais).
+ */
 export const problemasQualidade = sqliteTable('problemas_qualidade', {
   id: text('id').primaryKey(),
   diagnostico_id: text('diagnostico_id')
-    .notNull()
     .references(() => diagnosticosQualidade.id, { onDelete: 'cascade' }),
   ativo_dados_id: text('ativo_dados_id')
     .notNull()
@@ -172,6 +199,9 @@ export const problemasQualidade = sqliteTable('problemas_qualidade', {
   deliberado_em: text('deliberado_em'),
   status: text('status').notNull().default('ABERTO'),
   origem_deteccao: text('origem_deteccao').notNull().default('AUTOMATICA'),
+  regra_id: text('regra_id')
+    .references(() => regrasQualidade.id, { onDelete: 'set null' }),
+  regra_snapshot: text('regra_snapshot'),
   criado_em: text('criado_em').notNull(),
   atualizado_em: text('atualizado_em').notNull(),
 });
@@ -216,6 +246,7 @@ export const ativosDadosRelations = relations(ativosDados, ({ one, many }) => ({
   }),
   diagnosticosQualidade: many(diagnosticosQualidade),
   problemasQualidade: many(problemasQualidade),
+  regrasQualidade: many(regrasQualidade),
 }));
 
 export const diagnosticosQualidadeRelations = relations(diagnosticosQualidade, ({ one, many }) => ({
@@ -226,6 +257,14 @@ export const diagnosticosQualidadeRelations = relations(diagnosticosQualidade, (
   demanda: one(demandas, {
     fields: [diagnosticosQualidade.demanda_id],
     references: [demandas.id],
+  }),
+  problemas: many(problemasQualidade),
+}));
+
+export const regrasQualidadeRelations = relations(regrasQualidade, ({ one, many }) => ({
+  ativoDados: one(ativosDados, {
+    fields: [regrasQualidade.ativo_dados_id],
+    references: [ativosDados.id],
   }),
   problemas: many(problemasQualidade),
 }));
@@ -242,6 +281,10 @@ export const problemasQualidadeRelations = relations(problemasQualidade, ({ one 
   demanda: one(demandas, {
     fields: [problemasQualidade.demanda_id],
     references: [demandas.id],
+  }),
+  regra: one(regrasQualidade, {
+    fields: [problemasQualidade.regra_id],
+    references: [regrasQualidade.id],
   }),
 }));
 
