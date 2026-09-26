@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm';
-import { AnySQLiteColumn, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { AnySQLiteColumn, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 /**
  * Tabela de controle de integridade e metadados do sistema (Bootstrap Técnico)
@@ -113,6 +113,70 @@ export const ativosDados = sqliteTable('ativos_dados', {
 });
 
 /**
+ * Diagnósticos de Qualidade (V1 — Subunidade 3.4A / ADR-002 Seção 5.3-B)
+ * Execuções formais de varreduras de qualidade sobre um ativo de dados.
+ * Histórico preservado sem sobrescrita.
+ * Cardinalidade: AtivoDados 1 → N DiagnosticosQualidade.
+ */
+export const diagnosticosQualidade = sqliteTable('diagnosticos_qualidade', {
+  id: text('id').primaryKey(),
+  ativo_dados_id: text('ativo_dados_id')
+    .notNull()
+    .references(() => ativosDados.id, { onDelete: 'cascade' }),
+  demanda_id: text('demanda_id')
+    .notNull()
+    .references(() => demandas.id, { onDelete: 'cascade' }),
+  iniciado_em: text('iniciado_em').notNull(),
+  concluido_em: text('concluido_em'),
+  duracao_ms: integer('duracao_ms').notNull().default(0),
+  total_linhas_avaliadas: integer('total_linhas_avaliadas').notNull().default(0),
+  total_colunas_avaliadas: integer('total_colunas_avaliadas').notNull().default(0),
+  verificacoes_executadas: text('verificacoes_executadas').notNull().default('[]'),
+  total_problemas_detectados: integer('total_problemas_detectados').notNull().default(0),
+  status_execucao: text('status_execucao').notNull().default('EM_ANDAMENTO'),
+  erro_mensagem: text('erro_mensagem'),
+  resumo_metricas: text('resumo_metricas'),
+  criado_em: text('criado_em').notNull(),
+  atualizado_em: text('atualizado_em').notNull(),
+});
+
+/**
+ * Problemas de Qualidade (V1 — Subunidade 3.4A / FSD CF-07 / RF-018 a RF-022)
+ * Anomalias e inconsistências factuais detectadas pelo scanner ou registradas pelo analista.
+ * Cardinalidade: DiagnosticoQualidade 1 → N ProblemasQualidade.
+ */
+export const problemasQualidade = sqliteTable('problemas_qualidade', {
+  id: text('id').primaryKey(),
+  diagnostico_id: text('diagnostico_id')
+    .notNull()
+    .references(() => diagnosticosQualidade.id, { onDelete: 'cascade' }),
+  ativo_dados_id: text('ativo_dados_id')
+    .notNull()
+    .references(() => ativosDados.id, { onDelete: 'cascade' }),
+  demanda_id: text('demanda_id')
+    .notNull()
+    .references(() => demandas.id, { onDelete: 'cascade' }),
+  categoria: text('categoria').notNull(),
+  titulo: text('titulo').notNull(),
+  descricao: text('descricao').notNull(),
+  tabela_afetada: text('tabela_afetada').notNull(),
+  coluna_afetada: text('coluna_afetada'),
+  total_linhas_afetadas: integer('total_linhas_afetadas').notNull().default(0),
+  percentual_linhas_afetadas: real('percentual_linhas_afetadas').notNull().default(0),
+  amostra_evidencias: text('amostra_evidencias').notNull().default('[]'),
+  severidade: text('severidade').notNull().default('PENDENTE'),
+  impacto_calculo: text('impacto_calculo'),
+  acao_deliberada: text('acao_deliberada'),
+  justificativa_deliberacao: text('justificativa_deliberacao'),
+  deliberado_por_humano: integer('deliberado_por_humano').notNull().default(0),
+  deliberado_em: text('deliberado_em'),
+  status: text('status').notNull().default('ABERTO'),
+  origem_deteccao: text('origem_deteccao').notNull().default('AUTOMATICA'),
+  criado_em: text('criado_em').notNull(),
+  atualizado_em: text('atualizado_em').notNull(),
+});
+
+/**
  * Relacionamentos declarativos Drizzle ORM
  */
 export const projetosRelations = relations(projetos, ({ many }) => ({
@@ -126,6 +190,8 @@ export const demandasRelations = relations(demandas, ({ one, many }) => ({
   }),
   auditorias: many(trilhaAuditoria),
   ativosDados: many(ativosDados),
+  diagnosticosQualidade: many(diagnosticosQualidade),
+  problemasQualidade: many(problemasQualidade),
 }));
 
 export const trilhaAuditoriaRelations = relations(trilhaAuditoria, ({ one }) => ({
@@ -148,5 +214,35 @@ export const ativosDadosRelations = relations(ativosDados, ({ one, many }) => ({
   versoesSucessoras: many(ativosDados, {
     relationName: 'sucessaoAtivos',
   }),
+  diagnosticosQualidade: many(diagnosticosQualidade),
+  problemasQualidade: many(problemasQualidade),
 }));
+
+export const diagnosticosQualidadeRelations = relations(diagnosticosQualidade, ({ one, many }) => ({
+  ativoDados: one(ativosDados, {
+    fields: [diagnosticosQualidade.ativo_dados_id],
+    references: [ativosDados.id],
+  }),
+  demanda: one(demandas, {
+    fields: [diagnosticosQualidade.demanda_id],
+    references: [demandas.id],
+  }),
+  problemas: many(problemasQualidade),
+}));
+
+export const problemasQualidadeRelations = relations(problemasQualidade, ({ one }) => ({
+  diagnostico: one(diagnosticosQualidade, {
+    fields: [problemasQualidade.diagnostico_id],
+    references: [diagnosticosQualidade.id],
+  }),
+  ativoDados: one(ativosDados, {
+    fields: [problemasQualidade.ativo_dados_id],
+    references: [ativosDados.id],
+  }),
+  demanda: one(demandas, {
+    fields: [problemasQualidade.demanda_id],
+    references: [demandas.id],
+  }),
+}));
+
 
