@@ -1,0 +1,1 @@
+ALTER TABLE `ativos_dados` ADD `substitui_ativo_id` text REFERENCES ativos_dados(id);

@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm';
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { AnySQLiteColumn, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 /**
  * Tabela de controle de integridade e metadados do sistema (Bootstrap Técnico)
@@ -99,6 +99,8 @@ export const ativosDados = sqliteTable('ativos_dados', {
   periodo_inicio: text('periodo_inicio'),
   periodo_fim: text('periodo_fim'),
   versao: text('versao'),
+  substitui_ativo_id: text('substitui_ativo_id')
+    .references((): AnySQLiteColumn => ativosDados.id),
   tamanho_bytes: integer('tamanho_bytes').notNull().default(0),
   total_linhas: integer('total_linhas').notNull().default(0),
   total_colunas: integer('total_colunas').notNull().default(0),
@@ -133,10 +135,18 @@ export const trilhaAuditoriaRelations = relations(trilhaAuditoria, ({ one }) => 
   }),
 }));
 
-export const ativosDadosRelations = relations(ativosDados, ({ one }) => ({
+export const ativosDadosRelations = relations(ativosDados, ({ one, many }) => ({
   demanda: one(demandas, {
     fields: [ativosDados.demanda_id],
     references: [demandas.id],
+  }),
+  ativoAnterior: one(ativosDados, {
+    fields: [ativosDados.substitui_ativo_id],
+    references: [ativosDados.id],
+    relationName: 'sucessaoAtivos',
+  }),
+  versoesSucessoras: many(ativosDados, {
+    relationName: 'sucessaoAtivos',
   }),
 }));
 

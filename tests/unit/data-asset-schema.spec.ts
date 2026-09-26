@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { 
   registerDataAssetSchema, 
+  replaceDataAssetSchema,
+  sugerirProximaVersao,
   normalizarCaminhoLocal 
 } from '@/lib/validations/data-asset-schema';
 import { FormatoArquivo } from '@/core/domain/enums/formato-arquivo';
@@ -78,7 +80,7 @@ describe('Validações de Ativo de Dados (data-asset-schema)', () => {
     );
   });
 
-  it('deve atribuir versão 1.0 como padrão quando versao for nula ou omitida', () => {
+  it('deve atribuir versão 1.0 como padrão quando versao for nula ou omitida no cadastro', () => {
     const payloadSemVersao = {
       demanda_id: 'dem_123',
       caminho_local: 'C:\\vendas.csv',
@@ -94,5 +96,90 @@ describe('Validações de Ativo de Dados (data-asset-schema)', () => {
 
     const resultado = registerDataAssetSchema.parse(payloadSemVersao);
     expect(resultado.versao).toBe('1.0');
+  });
+
+  describe('sugerirProximaVersao', () => {
+    it('deve retornar null para ativo sem versão ou nulo', () => {
+      expect(sugerirProximaVersao(null)).toBeNull();
+      expect(sugerirProximaVersao(undefined)).toBeNull();
+      expect(sugerirProximaVersao('')).toBeNull();
+    });
+
+    it('deve incrementar a parte Y no padrão canônico X.Y', () => {
+      expect(sugerirProximaVersao('1.0')).toBe('1.1');
+      expect(sugerirProximaVersao('1.1')).toBe('1.2');
+      expect(sugerirProximaVersao('1.9')).toBe('1.10');
+      expect(sugerirProximaVersao('2.15')).toBe('2.16');
+      expect(sugerirProximaVersao('10.99')).toBe('10.100');
+    });
+
+    it('deve retornar null para formatos fora do padrão X.Y', () => {
+      expect(sugerirProximaVersao('v1')).toBeNull();
+      expect(sugerirProximaVersao('2024-Rev2')).toBeNull();
+      expect(sugerirProximaVersao('1.0.0')).toBeNull();
+      expect(sugerirProximaVersao('final')).toBeNull();
+      expect(sugerirProximaVersao('1.x')).toBeNull();
+    });
+  });
+
+  describe('replaceDataAssetSchema', () => {
+    const baseReplacePayload = {
+      demanda_id: 'dem_123',
+      ativo_antigo_id: 'ast_old_1',
+      caminho_local: '"C:\\Dados\\vendas_v2.csv"',
+      nome_arquivo: 'vendas_v2.csv',
+      formato: FormatoArquivo.CSV,
+      tamanho_bytes: 2048,
+      total_linhas: 20,
+      total_colunas: 5,
+      hash_sha256: 'd'.repeat(64),
+      origem: 'Depto Financeiro',
+      versao: '1.1',
+      justificativa: 'Atualização mensal com novos fechamentos de vendas',
+      data_recebimento: '2026-09-26',
+    };
+
+    it('deve validar com sucesso um payload válido de substituição', () => {
+      const parsed = replaceDataAssetSchema.parse(baseReplacePayload);
+      expect(parsed.ativo_antigo_id).toBe('ast_old_1');
+      expect(parsed.versao).toBe('1.1');
+      expect(parsed.justificativa).toBe('Atualização mensal com novos fechamentos de vendas');
+      expect(parsed.caminho_local).toBe('C:\\Dados\\vendas_v2.csv');
+    });
+
+    it('deve rejeitar justificativa com menos de 10 caracteres', () => {
+      const payloadInvalido = {
+        ...baseReplacePayload,
+        justificativa: 'Curto',
+      };
+      expect(() => replaceDataAssetSchema.parse(payloadInvalido)).toThrow(
+        /A justificativa da substituição deve conter no mínimo 10 caracteres/
+      );
+    });
+
+    it('deve rejeitar justificativa vazia ou com espaços em branco', () => {
+      const payloadInvalido = {
+        ...baseReplacePayload,
+        justificativa: '         ',
+      };
+      expect(() => replaceDataAssetSchema.parse(payloadInvalido)).toThrow(
+        /A justificativa da substituição deve conter no mínimo 10 caracteres/
+      );
+    });
+
+    it('deve rejeitar quando versao estiver vazia', () => {
+      const payloadInvalido = {
+        ...baseReplacePayload,
+        versao: '',
+      };
+      expect(() => replaceDataAssetSchema.parse(payloadInvalido)).toThrow(
+        /A versão do novo ativo é obrigatória/
+      );
+    });
+
+    it('deve rejeitar quando ativo_antigo_id for omitido', () => {
+      const { ativo_antigo_id, ...resto } = baseReplacePayload;
+      expect(() => replaceDataAssetSchema.parse(resto)).toThrow();
+    });
   });
 });

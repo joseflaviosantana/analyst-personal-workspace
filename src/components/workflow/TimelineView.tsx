@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Clock, User, ArrowRight, ShieldCheck, PauseCircle, PlayCircle, XCircle } from 'lucide-react';
+import { Clock, User, ArrowRight, ShieldCheck, PauseCircle, PlayCircle, XCircle, RefreshCw } from 'lucide-react';
 import { TrilhaAuditoria } from '@/core/domain/entities/trilha-auditoria';
 import { EstadoDemanda } from '@/core/domain/enums/estado-demanda';
 import { DemandStateBadge } from '@/components/ui/DemandStateBadge';
@@ -37,15 +37,22 @@ export function TimelineView({ timeline }: TimelineViewProps) {
         {timeline.map((evento, index) => {
           let estadoAnterior: EstadoDemanda | string | null = null;
           let estadoNovo: EstadoDemanda | string | null = null;
+          let versaoAnterior: string | null = null;
+          let versaoNova: string | null = null;
+          let nomeArquivo: string | null = null;
 
           try {
             if (evento.dados_anteriores) {
               const parsed = JSON.parse(evento.dados_anteriores);
               estadoAnterior = parsed.estado ?? null;
+              versaoAnterior = parsed.versao ?? null;
+              nomeArquivo = parsed.nome_arquivo ?? null;
             }
             if (evento.dados_novos) {
               const parsed = JSON.parse(evento.dados_novos);
               estadoNovo = parsed.estado ?? null;
+              versaoNova = parsed.versao ?? null;
+              if (!nomeArquivo) nomeArquivo = parsed.nome_arquivo ?? null;
             }
           } catch {
             // ignore JSON parse errors
@@ -55,6 +62,7 @@ export function TimelineView({ timeline }: TimelineViewProps) {
           const isCancelamento = estadoNovo === EstadoDemanda.CANCELADA;
           const isRetomada = estadoAnterior === EstadoDemanda.SUSPENSA;
           const isCriacao = evento.tipo_evento === 'CRIACAO';
+          const isAtivoSubstituido = evento.entidade === 'AtivoDados' && evento.tipo_evento === 'TRANSICAO_ESTADO';
 
           return (
             <div 
@@ -68,10 +76,11 @@ export function TimelineView({ timeline }: TimelineViewProps) {
                 aria-hidden="true"
               >
                 {isCriacao && <ShieldCheck className="h-2.5 w-2.5 text-blue-400" />}
+                {isAtivoSubstituido && <RefreshCw className="h-2.5 w-2.5 text-amber-400" />}
                 {isSuspensao && <PauseCircle className="h-2.5 w-2.5 text-amber-400" />}
                 {isRetomada && <PlayCircle className="h-2.5 w-2.5 text-emerald-400" />}
                 {isCancelamento && <XCircle className="h-2.5 w-2.5 text-rose-400" />}
-                {!isCriacao && !isSuspensao && !isRetomada && !isCancelamento && (
+                {!isCriacao && !isAtivoSubstituido && !isSuspensao && !isRetomada && !isCancelamento && (
                   <div className="h-1.5 w-1.5 rounded-full bg-blue-400" />
                 )}
               </div>
@@ -80,10 +89,11 @@ export function TimelineView({ timeline }: TimelineViewProps) {
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 <span className="font-semibold text-slate-200">
                   {isCriacao && (evento.entidade === 'AtivoDados' ? 'Ativo de Dados Catalogado' : 'Criação da Demanda')}
+                  {isAtivoSubstituido && 'Ativo de Dados Substituído'}
                   {isSuspensao && 'Suspensão da Demanda'}
                   {isRetomada && 'Retomada de Demanda'}
                   {isCancelamento && 'Cancelamento da Demanda'}
-                  {!isCriacao && !isSuspensao && !isRetomada && !isCancelamento && 'Transição de Estado'}
+                  {!isCriacao && !isAtivoSubstituido && !isSuspensao && !isRetomada && !isCancelamento && 'Transição de Estado'}
                 </span>
 
                 <span className="text-slate-500">•</span>
@@ -100,7 +110,7 @@ export function TimelineView({ timeline }: TimelineViewProps) {
                 </span>
               </div>
 
-              {/* Transição de Estados */}
+              {/* Transição de Estados da Demanda */}
               {estadoNovo && (
                 <div className="flex items-center gap-2 pt-0.5">
                   {estadoAnterior && (
@@ -110,6 +120,20 @@ export function TimelineView({ timeline }: TimelineViewProps) {
                     </>
                   )}
                   <DemandStateBadge estado={estadoNovo} className="text-[11px] py-0 px-2" />
+                </div>
+              )}
+
+              {/* Detalhes da Substituição do Ativo de Dados */}
+              {isAtivoSubstituido && versaoNova && (
+                <div className="flex flex-wrap items-center gap-2 pt-0.5 text-xs" data-testid={`timeline-asset-replacement-${index}`}>
+                  {nomeArquivo && <span className="font-mono text-slate-300 font-medium">{nomeArquivo}</span>}
+                  <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-mono text-slate-400">
+                    v{versaoAnterior || '1.0'}
+                  </span>
+                  <ArrowRight className="h-3 w-3 text-slate-600" />
+                  <span className="rounded bg-emerald-950/80 border border-emerald-800/80 px-1.5 py-0.5 text-[10px] font-mono text-emerald-300 font-semibold">
+                    v{versaoNova}
+                  </span>
                 </div>
               )}
 

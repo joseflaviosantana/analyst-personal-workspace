@@ -1,0 +1,7 @@
+id_cliente,nome_cliente,segmento,faturamento,data_cadastro
+1001,Cliente Alpha,Varejo,12500.50,2024-01-15
+1002,Cliente Beta,Industria,45000.00,2024-02-20
+1003,Cliente Gamma,Servicos,8200.75,2024-03-10
+1004,Cliente Delta,Varejo,19400.00,2024-04-05
+1005,Cliente Epsilon,Industria,62300.20,2024-05-18
+1006,Cliente Zeta,Servicos,31500.00,2024-06-25

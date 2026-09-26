@@ -10,8 +10,9 @@ import {
   RegisterDataAssetUseCase,
   ListDataAssetsUseCase,
   CheckAssetAccessibilityUseCase,
+  ReplaceDataAssetUseCase,
 } from '@/core/use-cases/data-assets';
-import { RegisterDataAssetInput } from '@/lib/validations/data-asset-schema';
+import { RegisterDataAssetInput, ReplaceDataAssetInput } from '@/lib/validations/data-asset-schema';
 
 const ativoDadosRepo = new SqliteAtivoDadosRepository();
 const demandRepo = new SqliteDemandRepository();
@@ -22,6 +23,7 @@ const inspectUseCase = new InspectLocalFileUseCase(fileSystemAdapter);
 const registerUseCase = new RegisterDataAssetUseCase(ativoDadosRepo, demandRepo, auditRepo);
 const listUseCase = new ListDataAssetsUseCase(ativoDadosRepo);
 const checkAccessibilityUseCase = new CheckAssetAccessibilityUseCase(ativoDadosRepo, fileSystemAdapter);
+const replaceUseCase = new ReplaceDataAssetUseCase(ativoDadosRepo, demandRepo);
 
 /**
  * Server Action: Inspecionar arquivo local sem persistência
@@ -81,6 +83,23 @@ export async function checkAssetAccessibilityAction(assetId: string) {
     return {
       success: false,
       error: error?.message || 'Erro ao verificar acessibilidade física do arquivo.',
+    };
+  }
+}
+
+/**
+ * Server Action: Substituir ativo de dados com versionamento e auditoria atômica (Unidade 3.3B)
+ */
+export async function replaceDataAssetAction(input: ReplaceDataAssetInput) {
+  try {
+    const result = await replaceUseCase.execute(input);
+    revalidatePath(`/demands/${input.demanda_id}`);
+    revalidatePath('/cockpit');
+    return { success: true, data: result };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error?.message || 'Erro inesperado ao substituir o ativo de dados.',
     };
   }
 }

@@ -23,12 +23,16 @@ import { ResultadoAcessibilidade } from '@/core/domain/adapters/file-system-adap
 interface DataAssetCardProps {
   asset: AtivoDados;
   onViewSchema: (asset: AtivoDados) => void;
+  onReplace?: (asset: AtivoDados) => void;
+  isReadOnly?: boolean;
 }
 
-export function DataAssetCard({ asset, onViewSchema }: DataAssetCardProps) {
+export function DataAssetCard({ asset, onViewSchema, onReplace, isReadOnly = false }: DataAssetCardProps) {
   const [copiedHash, setCopiedHash] = useState(false);
   const [isCheckingAccess, setIsCheckingAccess] = useState(false);
   const [accessResult, setAccessResult] = useState<ResultadoAcessibilidade | null>(null);
+
+  const isSubstituido = asset.status === 'SUBSTITUIDO';
 
   const handleCopyHash = () => {
     navigator.clipboard.writeText(asset.hash_sha256);
@@ -73,32 +77,45 @@ export function DataAssetCard({ asset, onViewSchema }: DataAssetCardProps) {
   const shortHash = asset.hash_sha256 ? `${asset.hash_sha256.slice(0, 10)}...${asset.hash_sha256.slice(-8)}` : '';
 
   return (
-    <Card className="p-5 border-slate-800 bg-slate-900/70 hover:border-slate-700 transition-colors" testId={`data-asset-card-${asset.id}`}>
+    <Card 
+      className={`p-5 transition-colors ${
+        isSubstituido 
+          ? 'border-slate-800/80 bg-slate-950/40 border-dashed opacity-85' 
+          : 'border-slate-800 bg-slate-900/70 hover:border-slate-700'
+      }`} 
+      testId={`data-asset-card-${asset.id}`}
+    >
       <div className="flex flex-col gap-4">
         {/* Top bar: Ícone, Nome, Badges e Ações principais */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-800 bg-slate-950">
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border ${
+              isSubstituido ? 'border-slate-800 bg-slate-900/50' : 'border-slate-800 bg-slate-950'
+            }`}>
               {isExcel ? (
-                <FileSpreadsheet className="h-5 w-5 text-emerald-400" />
+                <FileSpreadsheet className={`h-5 w-5 ${isSubstituido ? 'text-emerald-500/60' : 'text-emerald-400'}`} />
               ) : (
-                <FileText className="h-5 w-5 text-blue-400" />
+                <FileText className={`h-5 w-5 ${isSubstituido ? 'text-blue-500/60' : 'text-blue-400'}`} />
               )}
             </div>
 
             <div>
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="font-semibold text-slate-200 text-sm" data-testid={`asset-name-${asset.id}`}>
+                <span className={`font-semibold text-sm ${isSubstituido ? 'text-slate-400' : 'text-slate-200'}`} data-testid={`asset-name-${asset.id}`}>
                   {asset.nome_arquivo}
                 </span>
                 <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-semibold text-slate-300">
                   {ROTULOS_FORMATO_ARQUIVO[asset.formato] || asset.formato}
                 </span>
-                <span className="rounded bg-blue-950/80 border border-blue-800/80 px-1.5 py-0.5 text-[10px] font-semibold text-blue-300">
+                <span className="rounded bg-blue-950/80 border border-blue-800/80 px-1.5 py-0.5 text-[10px] font-semibold text-blue-300 font-mono">
                   v{asset.versao || '1.0'}
                 </span>
-                <span className="rounded bg-emerald-950/80 border border-emerald-800/80 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-300">
-                  {asset.status}
+                <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold border ${
+                  isSubstituido
+                    ? 'bg-amber-950/60 border-amber-800/60 text-amber-300'
+                    : 'bg-emerald-950/80 border-emerald-800/80 text-emerald-300'
+                }`} data-testid={`asset-status-${asset.id}`}>
+                  {isSubstituido ? 'Substituído / Obsoleto' : asset.status}
                 </span>
               </div>
               <p className="text-[11px] text-slate-400 font-mono mt-0.5 truncate max-w-lg" title={asset.caminho_local}>
@@ -108,6 +125,20 @@ export function DataAssetCard({ asset, onViewSchema }: DataAssetCardProps) {
           </div>
 
           <div className="flex items-center gap-2 self-end md:self-auto">
+            {/* Ação Substituir Ativo (somente para ativos ATIVOS quando demanda não for read-only) */}
+            {!isSubstituido && !isReadOnly && onReplace && (
+              <button
+                type="button"
+                onClick={() => onReplace(asset)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-800/80 bg-amber-950/40 px-2.5 py-1.5 text-xs font-medium text-amber-300 hover:bg-amber-900/60 hover:text-white transition-colors"
+                data-testid={`btn-replace-asset-${asset.id}`}
+                title="Substituir este ativo por uma nova versão"
+              >
+                <RefreshCw className="h-3 w-3" />
+                <span>Substituir</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={handleCheckAccess}
@@ -131,6 +162,14 @@ export function DataAssetCard({ asset, onViewSchema }: DataAssetCardProps) {
             </button>
           </div>
         </div>
+
+        {/* Tarja indicativa quando o ativo está SUBSTITUÍDO */}
+        {isSubstituido && (
+          <div className="flex items-center gap-2 rounded bg-amber-950/30 border border-amber-900/40 px-3 py-1.5 text-xs text-amber-300/90 font-sans" data-testid={`asset-replaced-badge-${asset.id}`}>
+            <AlertCircle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+            <span>Versão substituída preservada para governança e integridade histórica do inventário.</span>
+          </div>
+        )}
 
         {/* Status de Acessibilidade (se consultado) */}
         {accessResult && (

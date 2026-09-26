@@ -53,6 +53,8 @@ describe('RegisterDataAssetUseCase (Unitário)', () => {
       findById: vi.fn(),
       findByDemandId: vi.fn(),
       findByPath: vi.fn().mockResolvedValue(null),
+      findActiveByPath: vi.fn().mockResolvedValue(null),
+      replace: vi.fn(),
       update: vi.fn(),
       countByDemandId: vi.fn(),
     };

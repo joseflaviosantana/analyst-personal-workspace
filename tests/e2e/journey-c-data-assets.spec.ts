@@ -160,4 +160,133 @@ test.describe('E2E: Jornada C — Recebimento, Inspeção Física e Inventário 
     await expect(page.locator('[data-testid^="btn-view-schema-"]').first()).toBeVisible();
     await expect(page.locator('[data-testid^="btn-check-accessibility-"]').first()).toBeVisible();
   });
+
+  test('deve executar o fluxo completo de substituição de ativo, bloqueio de hash idêntico, auto-sugestão de versão e histórico segregado (Unidade 3.3B)', async ({ page }) => {
+    // 1. Setup: Criação de Projeto e Demanda
+    await page.goto('/projects/new');
+    const uniqueSuffix = Date.now().toString().slice(-4);
+    const projectName = `[E2E 3.3B] Projeto Substituição ${uniqueSuffix}`;
+    await page.getByTestId('input-project-name').fill(projectName);
+    await page.getByTestId('input-project-description').fill('Projeto para validação E2E da Unidade 3.3B.');
+    await page.getByTestId('select-project-status').selectOption('ATIVO');
+    await page.getByTestId('btn-submit-project').click();
+
+    await expect(page).toHaveURL(/\/projects\/proj_/);
+
+    await page.getByTestId('btn-new-demand-for-project').click();
+    const demandTitle = `[E2E 3.3B] Demanda Substituição ${uniqueSuffix}`;
+    await page.getByTestId('input-demand-title').fill(demandTitle);
+    await page.getByTestId('input-demand-raw-request').fill('Necessidade de substituição e versionamento de base.');
+    await page.getByTestId('btn-submit-demand').click();
+
+    await expect(page).toHaveURL(/\/demands\/dem_/);
+
+    // 2. Navegação para a Aba 3 — Ativos de Dados
+    const tabDataNav = page.getByTestId('tab-nav-data');
+    await tabDataNav.click();
+
+    // 3. Catalogar Ativo Inicial (v1.0)
+    await page.getByTestId('btn-open-register-asset').click();
+    const sampleCsvPath = path.resolve(process.cwd(), 'tests', 'fixtures', 'synthetic-sample.csv');
+    await page.getByTestId('input-caminho-local').fill(sampleCsvPath);
+    await page.getByTestId('btn-inspect-file').click();
+
+    await expect(page.getByTestId('inspection-preview-section')).toBeVisible();
+    await page.getByTestId('input-origem').fill('Depto Financeiro Matriz');
+    await page.getByTestId('btn-confirm-register').click();
+
+    // Aguarda confirmação no inventário
+    const activeList = page.getByTestId('active-data-assets-list');
+    await expect(activeList).toBeVisible();
+    await expect(activeList).toContainText(/synthetic-sample.csv/);
+    await expect(activeList).toContainText(/1\.0/);
+
+    // 4. Abertura do Modal de Substituição
+    const btnReplace = page.locator('[data-testid^="btn-replace-asset-"]').first();
+    await expect(btnReplace).toBeVisible();
+    await btnReplace.click();
+
+    const modalReplace = page.getByTestId('modal-replace-data-asset');
+    await expect(modalReplace).toBeVisible();
+    await expect(modalReplace).toContainText(/Substituir Ativo de Dados/i);
+
+    // 5. BLOQUEIO MANDATÓRIO: Tentar substituir com o mesmo arquivo (SHA-256 idêntico)
+    await page.getByTestId('input-replace-caminho-local').fill(sampleCsvPath);
+    await page.getByTestId('btn-inspect-replace-file').click();
+
+    await expect(page.getByTestId('replace-inspection-result')).toBeVisible();
+    const alertIdentical = page.getByTestId('alert-identical-hash-blocked');
+    await expect(alertIdentical).toBeVisible();
+    await expect(alertIdentical).toContainText(/Substituição Bloqueada: Conteúdo Físico Idêntico/i);
+
+    // Botão de confirmação deve permanecer desabilitado
+    const btnConfirmReplace = page.getByTestId('btn-confirm-replace');
+    await expect(btnConfirmReplace).toBeDisabled();
+
+    // 6. SUCESSO: Inspecionar arquivo modificado (synthetic-sample-v2.csv com SHA-256 diferente)
+    const sampleV2CsvPath = path.resolve(process.cwd(), 'tests', 'fixtures', 'synthetic-sample-v2.csv');
+    await page.getByTestId('input-replace-caminho-local').fill(sampleV2CsvPath);
+    await page.getByTestId('btn-inspect-replace-file').click();
+
+    await expect(page.getByTestId('replace-inspection-result')).toBeVisible();
+    await expect(alertIdentical).not.toBeVisible();
+
+    // Auto-sugestão da versão: 1.0 -> 1.1
+    const inputVersao = page.getByTestId('input-replace-versao');
+    await expect(inputVersao).toHaveValue('1.1');
+
+    // Origem preenchida com a anterior
+    const inputOrigem = page.getByTestId('input-replace-origem');
+    await expect(inputOrigem).toHaveValue('Depto Financeiro Matriz');
+
+    // Validação de justificativa: mínimo de 10 caracteres
+    const inputJustificativa = page.getByTestId('input-replace-justificativa');
+    await inputJustificativa.fill('Curto');
+    await expect(btnConfirmReplace).toBeDisabled();
+
+    await inputJustificativa.fill('Atualização do fechamento financeiro com inclusão do Cliente Zeta.');
+    await expect(btnConfirmReplace).toBeEnabled();
+
+    // 7. Confirmação da Substituição
+    await btnConfirmReplace.click();
+
+    // Modal deve fechar e feedback deve ser exibido
+    await expect(modalReplace).not.toBeVisible();
+    const feedback = page.getByTestId('data-asset-feedback-alert');
+    await expect(feedback).toBeVisible();
+    await expect(feedback).toContainText(/cadastrado com sucesso em substituição/i);
+
+    // 8. Verificação Visual Segregada na Aba 3
+    // Ativos Vigentes deve conter a nova versão (v1.1)
+    await expect(activeList).toContainText(/synthetic-sample-v2.csv/);
+    await expect(activeList).toContainText(/1\.1/);
+    await expect(activeList).not.toContainText(/v1\.0/);
+
+    // Seção Histórico de Ativos Substituídos deve estar visível com contagem (1)
+    const sectionReplaced = page.getByTestId('section-replaced-assets');
+    await expect(sectionReplaced).toBeVisible();
+    await expect(sectionReplaced).toContainText(/Histórico de Ativos Substituídos \(1\)/i);
+
+    // Expande o acordeão do histórico
+    const btnToggleHistory = page.getByTestId('btn-toggle-replaced-history');
+    await btnToggleHistory.click();
+
+    const replacedList = page.getByTestId('replaced-data-assets-list');
+    await expect(replacedList).toBeVisible();
+    await expect(replacedList).toContainText(/synthetic-sample.csv/);
+    await expect(replacedList).toContainText(/Versão substituída preservada para governança/i);
+
+    // O ativo substituído NÃO pode ter o botão "Substituir"
+    const replacedCard = replacedList.locator('[data-testid^="data-asset-card-"]').first();
+    await expect(replacedCard.locator('[data-testid^="btn-replace-asset-"]')).not.toBeVisible();
+
+    // 9. Verificação na Trilha de Auditoria (Aba 1 - Visão Geral)
+    await page.getByTestId('tab-nav-overview').click();
+    const timeline = page.getByTestId('demand-workflow-timeline');
+    await expect(timeline).toBeVisible();
+    await expect(timeline).toContainText(/Ativo de Dados Substituído/i);
+    await expect(timeline).toContainText(/v1\.0/);
+    await expect(timeline).toContainText(/v1\.1/);
+    await expect(timeline).toContainText(/Atualização do fechamento financeiro com inclusão do Cliente Zeta/i);
+  });
 });

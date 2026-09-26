@@ -12,6 +12,8 @@ describe('CheckAssetAccessibilityUseCase (Unitário)', () => {
       create: vi.fn(),
       findByDemandId: vi.fn(),
       findByPath: vi.fn(),
+      findActiveByPath: vi.fn(),
+      replace: vi.fn(),
       update: vi.fn(),
       countByDemandId: vi.fn(),
     };
@@ -56,6 +58,8 @@ describe('CheckAssetAccessibilityUseCase (Unitário)', () => {
       create: vi.fn(),
       findByDemandId: vi.fn(),
       findByPath: vi.fn(),
+      findActiveByPath: vi.fn(),
+      replace: vi.fn(),
       update: vi.fn(),
       countByDemandId: vi.fn(),
     };

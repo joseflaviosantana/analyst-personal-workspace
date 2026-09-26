@@ -1,10 +1,10 @@
-import { eq, desc, count } from 'drizzle-orm';
+import { and, eq, desc, count } from 'drizzle-orm';
 import { db } from '../client';
-import { ativosDados } from '../schema';
+import { ativosDados, trilhaAuditoria } from '../schema';
 import { AtivoDados } from '@/core/domain/entities/ativo-dados';
 import { normalizarFormatoArquivo } from '@/core/domain/enums/formato-arquivo';
-import { normalizarStatusAtivoDados } from '@/core/domain/enums/status-ativo-dados';
-import { IAtivoDadosRepository } from '@/core/domain/repositories/ativo-dados-repository.interface';
+import { normalizarStatusAtivoDados, StatusAtivoDados } from '@/core/domain/enums/status-ativo-dados';
+import { IAtivoDadosRepository, ReplaceAssetParams } from '@/core/domain/repositories/ativo-dados-repository.interface';
 
 export class SqliteAtivoDadosRepository implements IAtivoDadosRepository {
   private database: typeof db;
@@ -26,6 +26,7 @@ export class SqliteAtivoDadosRepository implements IAtivoDadosRepository {
       periodo_inicio: row.periodo_inicio,
       periodo_fim: row.periodo_fim,
       versao: row.versao,
+      substitui_ativo_id: row.substitui_ativo_id ?? null,
       tamanho_bytes: row.tamanho_bytes,
       total_linhas: row.total_linhas,
       total_colunas: row.total_colunas,
@@ -53,6 +54,7 @@ export class SqliteAtivoDadosRepository implements IAtivoDadosRepository {
         periodo_inicio: asset.periodo_inicio,
         periodo_fim: asset.periodo_fim,
         versao: asset.versao,
+        substitui_ativo_id: asset.substitui_ativo_id ?? null,
         tamanho_bytes: asset.tamanho_bytes,
         total_linhas: asset.total_linhas,
         total_colunas: asset.total_colunas,
@@ -101,6 +103,23 @@ export class SqliteAtivoDadosRepository implements IAtivoDadosRepository {
     return this.mapRowToEntity(row);
   }
 
+  async findActiveByPath(demandaId: string, caminhoLocal: string): Promise<AtivoDados | null> {
+    const row = this.database
+      .select()
+      .from(ativosDados)
+      .where(
+        and(
+          eq(ativosDados.demanda_id, demandaId),
+          eq(ativosDados.caminho_local, caminhoLocal),
+          eq(ativosDados.status, StatusAtivoDados.ATIVO)
+        )
+      )
+      .get();
+
+    if (!row) return null;
+    return this.mapRowToEntity(row);
+  }
+
   async update(id: string, data: Partial<AtivoDados>): Promise<AtivoDados | null> {
     const existing = await this.findById(id);
     if (!existing) return null;
@@ -119,6 +138,7 @@ export class SqliteAtivoDadosRepository implements IAtivoDadosRepository {
     if (data.periodo_inicio !== undefined) updateValues.periodo_inicio = data.periodo_inicio;
     if (data.periodo_fim !== undefined) updateValues.periodo_fim = data.periodo_fim;
     if (data.versao !== undefined) updateValues.versao = data.versao;
+    if (data.substitui_ativo_id !== undefined) updateValues.substitui_ativo_id = data.substitui_ativo_id;
     if (data.tamanho_bytes !== undefined) updateValues.tamanho_bytes = data.tamanho_bytes;
     if (data.total_linhas !== undefined) updateValues.total_linhas = data.total_linhas;
     if (data.total_colunas !== undefined) updateValues.total_colunas = data.total_colunas;
@@ -144,5 +164,97 @@ export class SqliteAtivoDadosRepository implements IAtivoDadosRepository {
       .get();
 
     return res?.total ?? 0;
+  }
+
+  async replace(params: ReplaceAssetParams): Promise<{ ativoSubstituido: AtivoDados; novoAtivo: AtivoDados }> {
+    const now = new Date().toISOString();
+
+    return this.database.transaction((tx) => {
+      // 1. Atomicidade Reforçada: Atualização do ativo anterior garantindo id, status = 'ATIVO' e exactly 1 row updated
+      const updateResult = tx
+        .update(ativosDados)
+        .set({
+          status: StatusAtivoDados.SUBSTITUIDO,
+          atualizado_em: now,
+        })
+        .where(
+          and(
+            eq(ativosDados.id, params.antigoId),
+            eq(ativosDados.status, StatusAtivoDados.ATIVO)
+          )
+        )
+        .run();
+
+      if (updateResult.changes !== 1) {
+        throw new Error(
+          `Falha na substituição atômica: O ativo anterior '${params.antigoId}' não foi localizado ou não está no estado ATIVO.`
+        );
+      }
+
+      // 2. Inserção do novo ativo com substitui_ativo_id apontando para o antigo
+      tx.insert(ativosDados)
+        .values({
+          id: params.novoAtivo.id,
+          demanda_id: params.novoAtivo.demanda_id,
+          nome_arquivo: params.novoAtivo.nome_arquivo,
+          caminho_local: params.novoAtivo.caminho_local,
+          formato: params.novoAtivo.formato,
+          origem: params.novoAtivo.origem,
+          descricao_conteudo: params.novoAtivo.descricao_conteudo,
+          granularidade: params.novoAtivo.granularidade,
+          periodo_inicio: params.novoAtivo.periodo_inicio,
+          periodo_fim: params.novoAtivo.periodo_fim,
+          versao: params.novoAtivo.versao,
+          substitui_ativo_id: params.antigoId,
+          tamanho_bytes: params.novoAtivo.tamanho_bytes,
+          total_linhas: params.novoAtivo.total_linhas,
+          total_colunas: params.novoAtivo.total_colunas,
+          hash_sha256: params.novoAtivo.hash_sha256,
+          status: StatusAtivoDados.ATIVO,
+          schema_inferido: params.novoAtivo.schema_inferido,
+          data_recebimento: params.novoAtivo.data_recebimento,
+          criado_em: params.novoAtivo.criado_em || now,
+          atualizado_em: params.novoAtivo.atualizado_em || now,
+        })
+        .run();
+
+      // 3. Inserção atômica do evento na trilha de auditoria
+      tx.insert(trilhaAuditoria)
+        .values({
+          id: params.eventoAuditoria.id,
+          demanda_id: params.eventoAuditoria.demanda_id,
+          entidade: params.eventoAuditoria.entidade,
+          entidade_id: params.eventoAuditoria.entidade_id,
+          tipo_evento: params.eventoAuditoria.tipo_evento,
+          autor_tipo: params.eventoAuditoria.autor_tipo,
+          dados_anteriores: params.eventoAuditoria.dados_anteriores,
+          dados_novos: params.eventoAuditoria.dados_novos,
+          justificativa: params.eventoAuditoria.justificativa,
+          timestamp: params.eventoAuditoria.timestamp,
+        })
+        .run();
+
+      // Busca os dois registros atualizados para retorno tipado
+      const rowAntigo = tx
+        .select()
+        .from(ativosDados)
+        .where(eq(ativosDados.id, params.antigoId))
+        .get();
+
+      const rowNovo = tx
+        .select()
+        .from(ativosDados)
+        .where(eq(ativosDados.id, params.novoAtivo.id))
+        .get();
+
+      if (!rowAntigo || !rowNovo) {
+        throw new Error('Falha na recuperação dos ativos após a substituição atômica.');
+      }
+
+      return {
+        ativoSubstituido: this.mapRowToEntity(rowAntigo),
+        novoAtivo: this.mapRowToEntity(rowNovo),
+      };
+    });
   }
 }

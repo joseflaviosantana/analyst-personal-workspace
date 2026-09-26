@@ -14,7 +14,10 @@ import {
   FileText,
   Info,
   Copy,
-  Check
+  Check,
+  ChevronDown,
+  ChevronRight,
+  History
 } from 'lucide-react';
 import { DemandaComProjeto } from '@/core/domain/entities/demanda';
 import { AtivoDados } from '@/core/domain/entities/ativo-dados';
@@ -29,6 +32,7 @@ import { Card } from '@/components/ui/Card';
 import { inspectLocalFileAction, registerDataAssetAction } from '@/app/actions/data-asset-actions';
 import { DataAssetCard } from './DataAssetCard';
 import { DataAssetSchemaModal } from './DataAssetSchemaModal';
+import { ReplaceDataAssetModal } from './ReplaceDataAssetModal';
 
 interface TabDataAssetsProps {
   demand: DemandaComProjeto;
@@ -40,6 +44,22 @@ export function TabDataAssets({ demand, initialAssets = [] }: TabDataAssetsProps
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [selectedAssetForSchema, setSelectedAssetForSchema] = useState<AtivoDados | null>(null);
+  const [selectedAssetForReplace, setSelectedAssetForReplace] = useState<AtivoDados | null>(null);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
+  const ativosVigentes = assets.filter((a) => a.status === 'ATIVO');
+  const ativosSubstituidos = assets.filter((a) => a.status === 'SUBSTITUIDO');
+
+  const handleAssetReplaced = (result: { ativoSubstituido: AtivoDados; novoAtivo: AtivoDados }) => {
+    setAssets((prev) => {
+      const updated = prev.map((a) => (a.id === result.ativoSubstituido.id ? result.ativoSubstituido : a));
+      return [result.novoAtivo, ...updated.filter((a) => a.id !== result.novoAtivo.id)];
+    });
+    setFeedback({
+      type: 'success',
+      message: `Ativo '${result.novoAtivo.nome_arquivo}' (v${result.novoAtivo.versao}) cadastrado com sucesso em substituição a '${result.ativoSubstituido.nome_arquivo}' (v${result.ativoSubstituido.versao}).`,
+    });
+  };
 
   // Estados da Fase 1: Inspeção
   const [caminhoLocal, setCaminhoLocal] = useState('');
@@ -651,16 +671,79 @@ export function TabDataAssets({ demand, initialAssets = [] }: TabDataAssetsProps
         </div>
       )}
 
-      {/* LISTA / INVENTÁRIO DOS ATIVOS CADASTRADOS */}
+      {/* LISTA / INVENTÁRIO DOS ATIVOS CADASTRADOS (Alternativa 3A aprovada) */}
       {!isFormOpen && assets.length > 0 && (
-        <div className="space-y-4" data-testid="data-assets-list">
-          {assets.map((asset) => (
-            <DataAssetCard
-              key={asset.id}
-              asset={asset}
-              onViewSchema={(a) => setSelectedAssetForSchema(a)}
-            />
-          ))}
+        <div className="space-y-6" data-testid="data-assets-list">
+          {/* Seção 1: Ativos Vigentes */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+                  Ativos Vigentes ({ativosVigentes.length})
+                </h4>
+                <span className="text-[11px] text-slate-500">
+                  Fontes em vigor para modelagem e análise
+                </span>
+              </div>
+            </div>
+
+            {ativosVigentes.length > 0 ? (
+              <div className="space-y-4" data-testid="active-data-assets-list">
+                {ativosVigentes.map((asset) => (
+                  <DataAssetCard
+                    key={asset.id}
+                    asset={asset}
+                    onViewSchema={(a) => setSelectedAssetForSchema(a)}
+                    onReplace={(a) => setSelectedAssetForReplace(a)}
+                    isReadOnly={isReadOnly}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-4 text-center text-xs text-slate-400">
+                Nenhum ativo vigente no momento. Todos os ativos catalogados foram substituídos.
+              </div>
+            )}
+          </div>
+
+          {/* Seção 2: Histórico de Ativos Substituídos (Alternativa 3A aprovada) */}
+          {ativosSubstituidos.length > 0 && (
+            <div className="border-t border-slate-800/80 pt-4" data-testid="section-replaced-assets">
+              <button
+                type="button"
+                onClick={() => setIsHistoryOpen((prev) => !prev)}
+                className="flex items-center justify-between w-full p-2.5 rounded-lg border border-slate-800/80 bg-slate-950/60 hover:bg-slate-900 transition-colors text-left"
+                data-testid="btn-toggle-replaced-history"
+              >
+                <div className="flex items-center gap-2">
+                  <History className="h-4 w-4 text-amber-400" />
+                  <span className="text-xs font-semibold text-slate-300">
+                    Histórico de Ativos Substituídos ({ativosSubstituidos.length})
+                  </span>
+                  <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400 font-mono">
+                    Auditável
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                  <span>{isHistoryOpen ? 'Ocultar' : 'Exibir'}</span>
+                  {isHistoryOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                </div>
+              </button>
+
+              {isHistoryOpen && (
+                <div className="mt-3 space-y-4 pl-2 border-l-2 border-slate-800/80" data-testid="replaced-data-assets-list">
+                  {ativosSubstituidos.map((asset) => (
+                    <DataAssetCard
+                      key={asset.id}
+                      asset={asset}
+                      onViewSchema={(a) => setSelectedAssetForSchema(a)}
+                      isReadOnly={true}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -668,6 +751,13 @@ export function TabDataAssets({ demand, initialAssets = [] }: TabDataAssetsProps
       <DataAssetSchemaModal
         asset={selectedAssetForSchema}
         onClose={() => setSelectedAssetForSchema(null)}
+      />
+
+      {/* Modal de Substituição de Ativo (Unidade 3.3B) */}
+      <ReplaceDataAssetModal
+        asset={selectedAssetForReplace}
+        onClose={() => setSelectedAssetForReplace(null)}
+        onReplaced={handleAssetReplaced}
       />
     </div>
   );

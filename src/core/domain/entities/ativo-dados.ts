@@ -19,6 +19,7 @@ export interface AtivoDados {
   periodo_inicio: string | null;
   periodo_fim: string | null;
   versao: string | null;
+  substitui_ativo_id?: string | null;
   tamanho_bytes: number;
   total_linhas: number;
   total_colunas: number;
