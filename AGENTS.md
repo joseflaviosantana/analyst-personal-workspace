@@ -91,3 +91,13 @@ Ao concluir qualquer tarefa ou etapa de trabalho, o agente deve relatar suas ent
 3. **Validações Realizadas**: Quais comandos, checagens e testes foram rodados e seus respectivos resultados.
 4. **Riscos e Débitos Técnicos**: Pontos de atenção, efeitos colaterais potenciais ou pendências deixadas para etapas futuras.
 5. **Próximos Passos Sugeridos**: Direcionamento para decisão humana, sem antecipação não autorizada de execução.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

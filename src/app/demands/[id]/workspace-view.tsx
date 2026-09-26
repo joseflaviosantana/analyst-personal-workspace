@@ -39,14 +39,24 @@ import { CancelDemandModal } from '@/components/workflow/CancelDemandModal';
 import { TimelineView } from '@/components/workflow/TimelineView';
 import { advanceDemandAction } from '@/app/actions/workflow-actions';
 
+import { AtivoDados } from '@/core/domain/entities/ativo-dados';
+import { TabDataAssets } from '@/components/demands/TabDataAssets';
+
 interface DemandWorkspaceViewProps {
   demand: DemandaComProjeto;
   timeline?: TrilhaAuditoria[];
+  initialAssets?: AtivoDados[];
+  defaultTab?: string;
 }
 
-export function DemandWorkspaceView({ demand, timeline = [] }: DemandWorkspaceViewProps) {
+export function DemandWorkspaceView({ 
+  demand, 
+  timeline = [], 
+  initialAssets = [],
+  defaultTab = 'overview'
+}: DemandWorkspaceViewProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'overview' | string>('overview');
+  const [activeTab, setActiveTab] = useState<string>(defaultTab);
   const [isAdvancing, setIsAdvancing] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -92,7 +102,7 @@ export function DemandWorkspaceView({ demand, timeline = [] }: DemandWorkspaceVi
   const tabs = [
     { id: 'overview', label: '1. Visão Geral', ready: true },
     { id: 'requirements', label: '2. Requisitos', ready: false },
-    { id: 'data', label: '3. Ativos de Dados', ready: false },
+    { id: 'data', label: '3. Ativos de Dados', ready: true },
     { id: 'quality', label: '4. Qualidade', ready: false },
     { id: 'transformation', label: '5. Preparação M', ready: false },
     { id: 'planning', label: '6. Planejamento & KPIs', ready: false },
@@ -362,6 +372,8 @@ export function DemandWorkspaceView({ demand, timeline = [] }: DemandWorkspaceVi
             </p>
           </Card>
         </div>
+      ) : activeTab === 'data' ? (
+        <TabDataAssets demand={demand} initialAssets={initialAssets} />
       ) : (
         /* Áreas Futuras da UX indicadas com honestidade técnica */
         <Card className="p-12 text-center" data-testid="tab-future-placeholder">

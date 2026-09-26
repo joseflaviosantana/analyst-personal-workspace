@@ -79,7 +79,7 @@ export function TimelineView({ timeline }: TimelineViewProps) {
               {/* Cabeçalho do evento */}
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 <span className="font-semibold text-slate-200">
-                  {isCriacao && 'Criação da Demanda'}
+                  {isCriacao && (evento.entidade === 'AtivoDados' ? 'Ativo de Dados Catalogado' : 'Criação da Demanda')}
                   {isSuspensao && 'Suspensão da Demanda'}
                   {isRetomada && 'Retomada de Demanda'}
                   {isCancelamento && 'Cancelamento da Demanda'}
