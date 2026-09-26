@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm';
-import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 /**
  * Tabela de controle de integridade e metadados do sistema (Bootstrap Técnico)
@@ -81,6 +81,36 @@ export const trilhaAuditoria = sqliteTable('trilha_auditoria', {
 });
 
 /**
+ * Ativos de Dados (V1 — Bloco 3 / FSD CF-06 e v1-domain-model.md Seção 3.6)
+ * Catalogação e metadados de arquivos tabulares locais recebidos para a demanda.
+ * Cardinalidade: Demanda 1 → N Ativos de Dados.
+ */
+export const ativosDados = sqliteTable('ativos_dados', {
+  id: text('id').primaryKey(),
+  demanda_id: text('demanda_id')
+    .notNull()
+    .references(() => demandas.id, { onDelete: 'cascade' }),
+  nome_arquivo: text('nome_arquivo').notNull(),
+  caminho_local: text('caminho_local').notNull(),
+  formato: text('formato').notNull(),
+  origem: text('origem'),
+  descricao_conteudo: text('descricao_conteudo'),
+  granularidade: text('granularidade'),
+  periodo_inicio: text('periodo_inicio'),
+  periodo_fim: text('periodo_fim'),
+  versao: text('versao'),
+  tamanho_bytes: integer('tamanho_bytes').notNull().default(0),
+  total_linhas: integer('total_linhas').notNull().default(0),
+  total_colunas: integer('total_colunas').notNull().default(0),
+  hash_sha256: text('hash_sha256').notNull(),
+  status: text('status').notNull().default('CADASTRADO'),
+  schema_inferido: text('schema_inferido'),
+  data_recebimento: text('data_recebimento').notNull(),
+  criado_em: text('criado_em').notNull(),
+  atualizado_em: text('atualizado_em').notNull(),
+});
+
+/**
  * Relacionamentos declarativos Drizzle ORM
  */
 export const projetosRelations = relations(projetos, ({ many }) => ({
@@ -93,6 +123,7 @@ export const demandasRelations = relations(demandas, ({ one, many }) => ({
     references: [projetos.id],
   }),
   auditorias: many(trilhaAuditoria),
+  ativosDados: many(ativosDados),
 }));
 
 export const trilhaAuditoriaRelations = relations(trilhaAuditoria, ({ one }) => ({
@@ -101,3 +132,11 @@ export const trilhaAuditoriaRelations = relations(trilhaAuditoria, ({ one }) => 
     references: [demandas.id],
   }),
 }));
+
+export const ativosDadosRelations = relations(ativosDados, ({ one }) => ({
+  demanda: one(demandas, {
+    fields: [ativosDados.demanda_id],
+    references: [demandas.id],
+  }),
+}));
+

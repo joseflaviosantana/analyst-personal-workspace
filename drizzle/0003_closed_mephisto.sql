@@ -1,0 +1,23 @@
+CREATE TABLE `ativos_dados` (
+	`id` text PRIMARY KEY NOT NULL,
+	`demanda_id` text NOT NULL,
+	`nome_arquivo` text NOT NULL,
+	`caminho_local` text NOT NULL,
+	`formato` text NOT NULL,
+	`origem` text,
+	`descricao_conteudo` text,
+	`granularidade` text,
+	`periodo_inicio` text,
+	`periodo_fim` text,
+	`versao` text,
+	`tamanho_bytes` integer DEFAULT 0 NOT NULL,
+	`total_linhas` integer DEFAULT 0 NOT NULL,
+	`total_colunas` integer DEFAULT 0 NOT NULL,
+	`hash_sha256` text NOT NULL,
+	`status` text DEFAULT 'CADASTRADO' NOT NULL,
+	`schema_inferido` text,
+	`data_recebimento` text NOT NULL,
+	`criado_em` text NOT NULL,
+	`atualizado_em` text NOT NULL,
+	FOREIGN KEY (`demanda_id`) REFERENCES `demandas`(`id`) ON UPDATE no action ON DELETE cascade
+);
