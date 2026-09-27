@@ -1,3 +1,4 @@
+import path from 'path';
 import { test, expect } from '@playwright/test';
 
 test.describe('E2E: Workflow Operacional e Governança de Estados da Demanda (Bloco 2)', () => {
@@ -172,11 +173,62 @@ test.describe('E2E: Workflow Operacional e Governança de Estados da Demanda (Bl
     await page.getByTestId('btn-submit-demand').click();
     await expect(page).toHaveURL(/\/demands\/dem_/);
 
-    // 2. Avanço sequencial pelas 7 transições até Concluída
+    // 2. Transições graduais respeitando os pré-requisitos de governança
+    const btnAdvance = page.getByTestId('btn-advance-state');
+    const stateBadge = page.getByTestId('demand-workspace-state');
+
+    // 2.1 Nova -> Em Clarificação
+    await expect(btnAdvance).toContainText(/Avançar para Em Clarificação/i);
+    await btnAdvance.click();
+    await expect(stateBadge).toHaveText(/Em Clarificação/i);
+
+    // 2.2 Em Clarificação -> Dados Recebidos
+    await expect(btnAdvance).toContainText(/Avançar para Dados Recebidos/i);
+    await btnAdvance.click();
+    await expect(stateBadge).toHaveText(/Dados Recebidos/i);
+
+    // 2.3 Pré-requisito de Governança (Unidade 3.3/3.4B): Cadastro de Ativo de Dados na Aba 3
+    const tabDataNav = page.getByTestId('tab-nav-data');
+    await tabDataNav.click();
+    await expect(page.getByTestId('tab-data-assets-container')).toBeVisible();
+
+    await page.getByTestId('btn-open-register-asset').click();
+    const sampleCsvPath = path.resolve(process.cwd(), 'tests', 'fixtures', 'synthetic-sample.csv');
+    await page.getByTestId('input-caminho-local').fill(sampleCsvPath);
+    await page.getByTestId('btn-inspect-file').click();
+
+    await expect(page.getByTestId('inspection-preview-section')).toBeVisible();
+    await page.getByTestId('input-origem').fill('Base Sintética Conclusão');
+    await page.getByTestId('btn-confirm-register').click();
+
+    await expect(page.getByTestId('data-asset-feedback-alert')).toBeVisible();
+    await expect(page.getByTestId('data-assets-list')).toContainText('synthetic-sample.csv');
+
+    // 2.4 Dados Recebidos -> Em Qualidade e Preparação
+    await page.getByTestId('tab-nav-overview').click();
+    await expect(btnAdvance).toContainText(/Avançar para Em Qualidade e Preparação/i);
+    await btnAdvance.click();
+    await expect(stateBadge).toHaveText(/Em Qualidade e Preparação/i);
+
+    // 2.5 Pré-requisito de Governança (Unidade 3.4C): Avaliação do Quality Gate na Aba 4
+    const tabQualityNav = page.getByTestId('tab-nav-quality');
+    await tabQualityNav.click();
+    await expect(page.getByTestId('tab-quality-container')).toBeVisible();
+
+    // Executa diagnóstico da base limpa para aprovação do Quality Gate
+    const btnRunDiag = page.getByTestId('btn-run-quality-diagnostic');
+    await expect(btnRunDiag).toBeVisible();
+    await btnRunDiag.click();
+
+    await expect(page.getByTestId('quality-feedback-alert')).toBeVisible();
+    const qualityGateBadge = page.getByTestId('badge-quality-gate-status');
+    await expect(qualityGateBadge).toHaveText(/LIBERADO/i);
+
+    // Retorna para Aba 1 (Overview) para seguir a esteira operacional
+    await page.getByTestId('tab-nav-overview').click();
+
+    // 2.6 Avanço das etapas restantes: Em Modelagem e Análise -> Em Validação -> Pronta para Entrega -> Concluída
     const etapasRestantes = [
-      'Em Clarificação',
-      'Dados Recebidos',
-      'Em Qualidade e Preparação',
       'Em Modelagem e Análise',
       'Em Validação',
       'Pronta para Entrega',
@@ -184,14 +236,12 @@ test.describe('E2E: Workflow Operacional e Governança de Estados da Demanda (Bl
     ];
 
     for (const etapa of etapasRestantes) {
-      const btnAdvance = page.getByTestId('btn-advance-state');
       await expect(btnAdvance).toBeVisible();
       await expect(btnAdvance).toContainText(new RegExp(etapa, 'i'));
       await btnAdvance.click();
     }
 
     // 3. Validação do Estado Concluída
-    const stateBadge = page.getByTestId('demand-workspace-state');
     await expect(stateBadge).toHaveText(/Concluída/i);
 
     // Governança Bloco 2: Terminologia de Conclusão normal
