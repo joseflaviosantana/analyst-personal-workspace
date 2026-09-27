@@ -3,13 +3,13 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { 
-  ArrowLeft, 
-  Edit3, 
-  Calendar, 
-  Clock, 
-  FolderKanban, 
-  ShieldAlert, 
+import {
+  ArrowLeft,
+  Edit3,
+  Calendar,
+  Clock,
+  FolderKanban,
+  ShieldAlert,
   Target,
   FileCode2,
   Info,
@@ -24,11 +24,11 @@ import {
 import { clsx } from 'clsx';
 import { DemandaComProjeto } from '@/core/domain/entities/demanda';
 import { TrilhaAuditoria } from '@/core/domain/entities/trilha-auditoria';
-import { 
-  EstadoDemanda, 
-  ROTULOS_ESTADO_DEMANDA, 
+import {
+  EstadoDemanda,
+  ROTULOS_ESTADO_DEMANDA,
   isEstadoTerminal,
-  normalizarEstadoDemanda 
+  normalizarEstadoDemanda
 } from '@/core/domain/enums/estado-demanda';
 import { WorkflowEngine } from '@/core/domain/rules/workflow-engine';
 import { Card } from '@/components/ui/Card';
@@ -41,6 +41,7 @@ import { advanceDemandAction } from '@/app/actions/workflow-actions';
 
 import { AtivoDados } from '@/core/domain/entities/ativo-dados';
 import { TabDataAssets } from '@/components/demands/TabDataAssets';
+import { TabQuality } from '@/components/demands/TabQuality';
 
 interface DemandWorkspaceViewProps {
   demand: DemandaComProjeto;
@@ -49,9 +50,9 @@ interface DemandWorkspaceViewProps {
   defaultTab?: string;
 }
 
-export function DemandWorkspaceView({ 
-  demand, 
-  timeline = [], 
+export function DemandWorkspaceView({
+  demand,
+  timeline = [],
   initialAssets = [],
   defaultTab = 'overview'
 }: DemandWorkspaceViewProps) {
@@ -81,9 +82,9 @@ export function DemandWorkspaceView({
       if (!res.success) {
         setFeedback({ type: 'error', message: res.error || 'Erro ao avançar estado.' });
       } else {
-        setFeedback({ 
-          type: 'success', 
-          message: `Demanda avançada com sucesso para ${ROTULOS_ESTADO_DEMANDA[proximoEstado]}.` 
+        setFeedback({
+          type: 'success',
+          message: `Demanda avançada com sucesso para ${ROTULOS_ESTADO_DEMANDA[proximoEstado]}.`
         });
         router.refresh();
       }
@@ -103,7 +104,7 @@ export function DemandWorkspaceView({
     { id: 'overview', label: '1. Visão Geral', ready: true },
     { id: 'requirements', label: '2. Requisitos', ready: false },
     { id: 'data', label: '3. Ativos de Dados', ready: true },
-    { id: 'quality', label: '4. Qualidade', ready: false },
+    { id: 'quality', label: '4. Qualidade', ready: true },
     { id: 'transformation', label: '5. Preparação M', ready: false },
     { id: 'planning', label: '6. Planejamento & KPIs', ready: false },
     { id: 'powerbi', label: '7. Power BI & DAX', ready: false },
@@ -116,7 +117,7 @@ export function DemandWorkspaceView({
   return (
     <div className="space-y-6 max-w-6xl">
       {/* Sticky Context Header do Workspace (UX Spec 4 / ADR-002) */}
-      <div 
+      <div
         data-testid="demand-sticky-header"
         className="rounded-xl border border-slate-800 bg-slate-900/90 p-5 shadow-lg backdrop-blur-md sticky top-0 z-20"
       >
@@ -150,9 +151,9 @@ export function DemandWorkspaceView({
             {/* Badge de Estado Atual */}
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-400">Estado:</span>
-              <DemandStateBadge 
-                estado={demand.estado} 
-                testId="demand-workspace-state" 
+              <DemandStateBadge
+                estado={demand.estado}
+                testId="demand-workspace-state"
               />
             </div>
 
@@ -236,7 +237,7 @@ export function DemandWorkspaceView({
 
         {/* Banner de Feedback */}
         {feedback && (
-          <div 
+          <div
             data-testid="workspace-feedback-alert"
             className={clsx(
               'mt-3 flex items-center justify-between rounded-lg p-2.5 text-xs border',
@@ -246,7 +247,7 @@ export function DemandWorkspaceView({
             )}
           >
             <span>{feedback.message}</span>
-            <button 
+            <button
               type="button"
               onClick={() => setFeedback(null)}
               className="hover:opacity-75"
@@ -326,7 +327,7 @@ export function DemandWorkspaceView({
               <FileCode2 className="h-4 w-4 text-blue-400" />
               <span>Solicitação Bruta Original do Cliente</span>
             </div>
-            <div 
+            <div
               data-testid="demand-raw-request"
               className="rounded-lg border border-slate-800 bg-slate-950 p-4 font-mono text-xs text-slate-300 whitespace-pre-wrap leading-relaxed"
             >
@@ -374,6 +375,8 @@ export function DemandWorkspaceView({
         </div>
       ) : activeTab === 'data' ? (
         <TabDataAssets demand={demand} initialAssets={initialAssets} />
+      ) : activeTab === 'quality' ? (
+        <TabQuality demand={demand} initialAssets={initialAssets} />
       ) : (
         /* Áreas Futuras da UX indicadas com honestidade técnica */
         <Card className="p-12 text-center" data-testid="tab-future-placeholder">
