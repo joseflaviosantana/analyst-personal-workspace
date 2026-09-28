@@ -40,6 +40,17 @@ export interface ContextoTransicao {
     status: string;
   } | null;
   problemasPendentesDeTratamento?: number;
+  // Governança 3.6C (Modelo Analítico Homologado e Integridade da Modelagem)
+  modeloHomologado?: {
+    id: string;
+    demanda_id: string;
+    dataset_autorizado_id: string;
+    status: string;
+    homologado_em?: string | null;
+    revogado_em?: string | null;
+    temAlteracaoPosterior?: boolean;
+    totalBloqueios?: number;
+  } | null;
 }
 
 export interface ResultadoValidacaoTransicao {
@@ -252,6 +263,44 @@ export class WorkflowEngine {
             mensagem: `Existem ${contexto.problemasPendentesDeTratamento} problema(s) com plano de tratamento no pipeline que não foram empiricamente resolvidos.`,
           };
         }
+      }
+    }
+
+    // 8. Governança 3.6C: Verificação de Modelo Analítico Homologado e Válido para avanço
+    if (origem === EstadoDemanda.EM_MODELAGEM_E_ANALISE && destino === EstadoDemanda.EM_VALIDACAO) {
+      if (!contexto?.modeloHomologado || contexto.modeloHomologado.status !== 'HOMOLOGADO') {
+        return {
+          valida: false,
+          mensagem: 'Não é permitido avançar para Em Validação sem um Modelo Analítico no status HOMOLOGADO.',
+        };
+      }
+
+      if (contexto.modeloHomologado.revogado_em) {
+        return {
+          valida: false,
+          mensagem: 'O modelo analítico vinculado à demanda foi revogado e não admite avanço de etapa.',
+        };
+      }
+
+      if (contexto.datasetAutorizado && contexto.modeloHomologado.dataset_autorizado_id !== contexto.datasetAutorizado.id) {
+        return {
+          valida: false,
+          mensagem: 'O modelo analítico homologado não está vinculado ao Dataset Autorizado vigente da demanda.',
+        };
+      }
+
+      if (contexto.modeloHomologado.temAlteracaoPosterior) {
+        return {
+          valida: false,
+          mensagem: 'O modelo analítico possui alterações materiais posteriores à homologação formal.',
+        };
+      }
+
+      if (contexto.modeloHomologado.totalBloqueios !== undefined && contexto.modeloHomologado.totalBloqueios > 0) {
+        return {
+          valida: false,
+          mensagem: `O modelo analítico possui ${contexto.modeloHomologado.totalBloqueios} bloqueio(s) de conformidade ativos.`,
+        };
       }
     }
 

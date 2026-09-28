@@ -12,6 +12,7 @@ import { SqliteDiagnosticosQualidadeRepository } from '@/infrastructure/db/repos
 import { SqliteProblemasQualidadeRepository } from '@/infrastructure/db/repositories/sqlite-problemas-qualidade-repository';
 import { SqliteDatasetAutorizadoRepository } from '@/infrastructure/db/repositories/sqlite-dataset-autorizado-repository';
 import { SqliteReceitaPreparacaoRepository } from '@/infrastructure/db/repositories/sqlite-receita-preparacao-repository';
+import { SqliteModeloAnaliticoRepository } from '@/infrastructure/db/repositories/sqlite-modelo-analitico-repository';
 
 import { IDemandRepository } from '@/core/domain/repositories/demand-repository.interface';
 import { IAuditRepository } from '@/core/domain/repositories/audit-repository.interface';
@@ -20,6 +21,8 @@ import { IDiagnosticosQualidadeRepository } from '@/core/domain/repositories/dia
 import { IProblemasQualidadeRepository } from '@/core/domain/repositories/problemas-qualidade-repository.interface';
 import { IDatasetAutorizadoRepository } from '@/core/domain/repositories/dataset-autorizado-repository.interface';
 import { IReceitaPreparacaoRepository } from '@/core/domain/repositories/receita-preparacao-repository.interface';
+import { IModeloAnaliticoRepository } from '@/core/domain/repositories/modelo-analitico-repository.interface';
+import { ModelingRulesEvaluator } from '@/core/domain/rules/modeling-rules-evaluator';
 
 import { 
   TransitionDemandStateUseCase,
@@ -53,6 +56,7 @@ export interface WorkflowActionDeps {
   problemasRepo: IProblemasQualidadeRepository;
   datasetAutorizadoRepo?: IDatasetAutorizadoRepository;
   receitaRepo?: IReceitaPreparacaoRepository;
+  modeloRepo?: IModeloAnaliticoRepository;
 }
 
 const defaultDemandRepo = new SqliteDemandRepository();
@@ -62,6 +66,7 @@ const defaultDiagnosticosRepo = new SqliteDiagnosticosQualidadeRepository();
 const defaultProblemasRepo = new SqliteProblemasQualidadeRepository();
 const defaultDatasetAutorizadoRepo = new SqliteDatasetAutorizadoRepository();
 const defaultReceitaRepo = new SqliteReceitaPreparacaoRepository();
+const defaultModeloRepo = new SqliteModeloAnaliticoRepository();
 
 function resolveWorkflowDeps(customDeps?: Partial<WorkflowActionDeps>): WorkflowActionDeps {
   return {
@@ -72,6 +77,7 @@ function resolveWorkflowDeps(customDeps?: Partial<WorkflowActionDeps>): Workflow
     problemasRepo: customDeps?.problemasRepo ?? defaultProblemasRepo,
     datasetAutorizadoRepo: customDeps ? customDeps.datasetAutorizadoRepo : defaultDatasetAutorizadoRepo,
     receitaRepo: customDeps ? customDeps.receitaRepo : defaultReceitaRepo,
+    modeloRepo: customDeps ? customDeps.modeloRepo : defaultModeloRepo,
   };
 }
 
@@ -166,6 +172,63 @@ export async function advanceDemandAction(
     if (proximoEstado === EstadoDemanda.EM_QUALIDADE_E_PREPARACAO) {
       const assets = await deps.ativoDadosRepo.findByDemandId(demandaId);
       contextoExtra = { ...contextoExtra, totalAtivosDados: assets.length };
+    }
+
+    // Regra de Governança 3.6C:
+    // Transição da etapa 3 (Em Modelagem e Análise) para etapa 4 (Em Validação)
+    // exige verificação factual de Modelo Analítico Homologado no servidor.
+    if (
+      demand.estado === EstadoDemanda.EM_MODELAGEM_E_ANALISE &&
+      proximoEstado === EstadoDemanda.EM_VALIDACAO
+    ) {
+      if (deps.modeloRepo) {
+        const modeloHomologado = await deps.modeloRepo.findHomologadoByDemandaId(demandaId);
+        if (modeloHomologado) {
+          const modeloCompleto = await deps.modeloRepo.findCompletoById(modeloHomologado.id);
+          let temAlteracaoPosterior = false;
+          let totalBloqueios = 0;
+          if (modeloCompleto && modeloCompleto.homologado_em) {
+            const tsHomologado = new Date(modeloCompleto.homologado_em).getTime();
+            for (const ent of modeloCompleto.entidades) {
+              if (new Date(ent.atualizado_em).getTime() > tsHomologado) temAlteracaoPosterior = true;
+              for (const a of ent.atributos) {
+                if (new Date(a.atualizado_em).getTime() > tsHomologado) temAlteracaoPosterior = true;
+              }
+            }
+            for (const r of modeloCompleto.relacionamentos) {
+              if (new Date(r.atualizado_em).getTime() > tsHomologado) temAlteracaoPosterior = true;
+            }
+            for (const m of modeloCompleto.metricas) {
+              if (new Date(m.atualizado_em).getTime() > tsHomologado) temAlteracaoPosterior = true;
+            }
+
+            const dataset = deps.datasetAutorizadoRepo
+              ? await deps.datasetAutorizadoRepo.findById(modeloCompleto.dataset_autorizado_id)
+              : null;
+            const conformidade = ModelingRulesEvaluator.avaliar(modeloCompleto, dataset);
+            totalBloqueios = conformidade.total_bloqueios;
+          }
+
+          contextoExtra = {
+            ...contextoExtra,
+            modeloHomologado: {
+              id: modeloHomologado.id,
+              demanda_id: modeloHomologado.demanda_id,
+              dataset_autorizado_id: modeloHomologado.dataset_autorizado_id,
+              status: modeloHomologado.status,
+              homologado_em: modeloHomologado.homologado_em,
+              revogado_em: modeloHomologado.revogado_em,
+              temAlteracaoPosterior,
+              totalBloqueios,
+            },
+          };
+        } else {
+          contextoExtra = {
+            ...contextoExtra,
+            modeloHomologado: null,
+          };
+        }
+      }
     }
 
     const updated = await transitionUseCase.execute({

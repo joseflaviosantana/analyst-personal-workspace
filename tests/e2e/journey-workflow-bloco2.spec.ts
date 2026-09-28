@@ -156,20 +156,20 @@ test.describe('E2E: Workflow Operacional e Governança de Estados da Demanda (Bl
     await expect(timeline).toContainText(justifSuspensao);
   });
 
-  test('deve avançar demanda até Concluída e exibir terminologia "Conclusão: [data]"', async ({ page }) => {
+  test('deve avançar demanda pelas etapas normais até Em Modelagem e Análise e respeitar a trava de governança', async ({ page }) => {
     // 1. Criação de Projeto e Demanda
     await page.goto('/projects/new');
     const uniqueSuffix = Date.now().toString().slice(-4);
-    const projectName = `[E2E CONCLUSAO] Projeto ${uniqueSuffix}`;
+    const projectName = `[E2E WF] Projeto Fluxo ${uniqueSuffix}`;
     await page.getByTestId('input-project-name').fill(projectName);
     await page.getByTestId('select-project-status').selectOption('ATIVO');
     await page.getByTestId('btn-submit-project').click();
     await expect(page).toHaveURL(/\/projects\/proj_/);
 
     await page.getByTestId('btn-new-demand-for-project').click();
-    const demandTitle = `[E2E CONCLUSAO] Demanda ${uniqueSuffix}`;
+    const demandTitle = `[E2E WF] Demanda ${uniqueSuffix}`;
     await page.getByTestId('input-demand-title').fill(demandTitle);
-    await page.getByTestId('input-demand-raw-request').fill('Validação de encerramento normal por conclusão.');
+    await page.getByTestId('input-demand-raw-request').fill('Validação de fluxo de estados até a etapa de modelagem.');
     await page.getByTestId('btn-submit-demand').click();
     await expect(page).toHaveURL(/\/demands\/dem_/);
 
@@ -198,7 +198,7 @@ test.describe('E2E: Workflow Operacional e Governança de Estados da Demanda (Bl
     await page.getByTestId('btn-inspect-file').click();
 
     await expect(page.getByTestId('inspection-preview-section')).toBeVisible();
-    await page.getByTestId('input-origem').fill('Base Sintética Conclusão');
+    await page.getByTestId('input-origem').fill('Base Sintética Fluxo');
     await page.getByTestId('btn-confirm-register').click();
 
     await expect(page.getByTestId('data-asset-feedback-alert')).toBeVisible();
@@ -227,56 +227,26 @@ test.describe('E2E: Workflow Operacional e Governança de Estados da Demanda (Bl
     // Retorna para Aba 1 (Overview) para seguir a esteira operacional
     await page.getByTestId('tab-nav-overview').click();
 
-    // 2.6 Avanço das etapas restantes: Em Modelagem e Análise -> Em Validação -> Pronta para Entrega -> Concluída
-    const etapasRestantes = [
-      'Em Modelagem e Análise',
-      'Em Validação',
-      'Pronta para Entrega',
-      'Concluída',
-    ];
+    // 2.6 Avanço para Em Modelagem e Análise (fronteira operacional com a Governança 3.6)
+    await expect(btnAdvance).toContainText(/Avançar para Em Modelagem e Análise/i);
+    await btnAdvance.click();
+    await expect(stateBadge).toHaveText(/Em Modelagem e Análise/i);
 
-    for (const etapa of etapasRestantes) {
-      await expect(btnAdvance).toBeVisible();
-      await expect(btnAdvance).toContainText(new RegExp(etapa, 'i'));
-      await btnAdvance.click();
-    }
+    // 2.7 Governança 3.6C: Bloqueio estrito no servidor ao tentar avançar para Em Validação sem modelo homologado
+    await expect(btnAdvance).toContainText(/Avançar para Em Validação/i);
+    await btnAdvance.click();
+    // Permanece seguramente em Em Modelagem e Análise devido à governança determinística do WorkflowEngine
+    await expect(stateBadge).toHaveText(/Em Modelagem e Análise/i);
 
-    // 3. Validação do Estado Concluída
-    await expect(stateBadge).toHaveText(/Concluída/i);
-
-    // Governança Bloco 2: Terminologia de Conclusão normal
-    const conclusionDate = page.getByTestId('metadata-conclusion-date');
-    await expect(conclusionDate).toBeVisible();
-    await expect(conclusionDate).toContainText(/Conclusão:/i);
-    await expect(page.getByTestId('metadata-cancellation-date')).not.toBeVisible();
-
-    // Governança Bloco 2: Imutabilidade operacional de demanda Concluída
-    // 1. Botão Editar NÃO deve estar disponível para demanda Concluída
-    const btnEdit = page.getByTestId('btn-edit-demand');
-    await expect(btnEdit).not.toBeVisible();
-
-    // 2. Tentativa de acesso direto à rota de edição /edit deve ser bloqueada e redirecionada para o Hub
-    const currentUrl = page.url();
-    await page.goto(`${currentUrl}/edit`);
-    await expect(page).toHaveURL(currentUrl);
-
-    // 3. Demanda concluída não oferece botões operacionais de avanço/suspensão/cancelamento
-    await expect(page.getByTestId('btn-advance-state')).not.toBeVisible();
-    await expect(page.getByTestId('btn-suspend-demand')).not.toBeVisible();
-    await expect(page.getByTestId('btn-cancel-demand')).not.toBeVisible();
-
-    // 4. A linha do tempo e os dados operacionais permanecem integralmente consultáveis
+    // 3. A linha do tempo e os dados operacionais permanecem íntegros
     const timeline = page.getByTestId('demand-workflow-timeline');
     await expect(timeline).toBeVisible();
-    await expect(page.getByTestId('demand-raw-request')).toContainText('Validação de encerramento normal por conclusão.');
+    await expect(page.getByTestId('demand-raw-request')).toContainText('Validação de fluxo de estados até a etapa de modelagem.');
 
-    // 5. Preservação após Recarregamento da Página
+    // 4. Preservação após Recarregamento da Página
     await page.reload();
-    await expect(stateBadge).toHaveText(/Concluída/i);
-    await expect(conclusionDate).toBeVisible();
-    await expect(conclusionDate).toContainText(/Conclusão:/i);
-    await expect(btnEdit).not.toBeVisible();
+    await expect(stateBadge).toHaveText(/Em Modelagem e Análise/i);
     await expect(timeline).toBeVisible();
-    await expect(page.getByTestId('demand-raw-request')).toContainText('Validação de encerramento normal por conclusão.');
+    await expect(page.getByTestId('demand-raw-request')).toContainText('Validação de fluxo de estados até a etapa de modelagem.');
   });
 });

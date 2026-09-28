@@ -10,3 +10,7 @@ export * from "./cadastrar-metrica-analitica.use-case";
 export * from "./atualizar-metrica-analitica.use-case";
 export * from "./remover-metrica-analitica.use-case";
 export * from "./avaliar-conformidade-modelo.use-case";
+export * from "./verificar-prontidao-modelo.use-case";
+export * from "./homologar-modelo-analitico.use-case";
+export * from "./revogar-homologacao-modelo.use-case";
+export * from "./obter-modelo-homologado-vigente.use-case";

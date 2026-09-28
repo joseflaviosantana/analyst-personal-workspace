@@ -124,5 +124,28 @@ export const avaliarConformidadeModeloSchema = z.object({
   modelo_id: (data.modelo_id || data.modeloId) as string,
 }));
 
+export const homologarModeloSchema = z.object({
+  modeloId: z.string().min(1, 'ID do modelo é obrigatório'),
+  justificativa: z.string().min(15, 'A justificativa de homologação deve conter no mínimo 15 caracteres.'),
+  justificativaAlertas: z.string().optional(),
+  homologadoPor: z.string().optional().default('HUMANO'),
+});
+
+export const revogarHomologacaoModeloSchema = z.object({
+  modeloId: z.string().min(1, 'ID do modelo é obrigatório'),
+  motivo: z.string().min(15, 'O motivo da revogação deve conter no mínimo 15 caracteres.'),
+});
+
+export const verificarProntidaoModeloSchema = z.object({
+  modeloId: z.string().optional(),
+  demandaId: z.string().optional(),
+}).refine(
+  (data) => Boolean(data.modeloId || data.demandaId),
+  { message: 'modeloId ou demandaId deve ser informado.' }
+);
+
 export type RemoverMetricaAnaliticaInput = z.infer<typeof removerMetricaAnaliticaSchema>;
-export type AvaliarConformidadeModeloInput = { modeloId?: string; modelo_id?: string };
+export type AvaliarConformidadeModeloInput = z.input<typeof avaliarConformidadeModeloSchema>;
+export type HomologarModeloInput = z.input<typeof homologarModeloSchema>;
+export type RevogarHomologacaoModeloInput = z.input<typeof revogarHomologacaoModeloSchema>;
+export type VerificarProntidaoModeloInput = z.input<typeof verificarProntidaoModeloSchema>;

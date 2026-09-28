@@ -22,6 +22,12 @@ describe('Core Domain: Workflow Engine & Governança de Estados (V1 — Bloco 2)
           detalhes: {} as any,
         },
         entregaveisHomologados: true,
+        modeloHomologado: {
+          id: 'mod-1',
+          demanda_id: 'dem-1',
+          dataset_autorizado_id: 'ds-1',
+          status: 'HOMOLOGADO' as const,
+        },
       };
 
       for (let i = 0; i < ESTADOS_ORDENADOS_SEQUENCIAIS.length - 1; i++) {
