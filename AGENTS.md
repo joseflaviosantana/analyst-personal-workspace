@@ -48,26 +48,34 @@ Qualquer atividade desenvolvida pelo agente neste repositório deve cumprir rigo
 $$\text{Compreender} \longrightarrow \text{Planejar} \longrightarrow \text{Executar} \longrightarrow \text{Testar} \longrightarrow \text{Corrigir} \longrightarrow \text{Retestar} \longrightarrow \text{Validar} \longrightarrow \text{Documentar} \longrightarrow \text{Revisão Humana}$$
 
 - **Compreender**: Mapear arquivos, ler especificações e entender as restrições antes de escrever qualquer código.
-- **Planejar**: Estruturar a estratégia de mudança de forma concisa e apresentar o plano quando a complexidade exigir.
+- **Planejar**: Estruturar a estratégia de mudança de forma concisa, definindo a lista nominal de arquivos previstos e aguardando aprovação humana (**Gate 1: Planejamento**).
 - **Executar**: Fazer a alteração necessária respeitando a tipagem, boas práticas e os limites estritos do escopo solicitado.
-- **Testar / Corrigir / Retestar**: Rodar os testes e verificações estáticas locais. Caso surjam falhas, depurar na causa-raiz, corrigir e rodar novamente até assegurar a estabilidade.
-- **Validar**: Confirmar que a entrega atende fielmente aos critérios de aceitação sem efeitos colaterais.
+- **Testar / Corrigir / Retestar**: Rodar os testes e verificações estáticas locais. Durante iterações em arquivos pontuais, pode-se usar `npm run test:fast -- <caminho>`.
+- **Validar (Pipeline Determinístico)**: Executar a suíte unificada de validação automatizada:
+  - `npm run verify`: executa análise estática (`lint` + `typecheck`), testes seguros com contenção de concorrência (`test:safe` com `--fileParallelism=false`) e auditoria de higiene (`check:hygiene`).
+  - `npm run verify:e2e`: para entregas com UI ou jornadas de usuário, executa `verify` + Playwright.
+  - `npm run verify:full`: para homologações completas e checkpoints estratégicos, executa `verify:e2e` + `build` de produção.
 - **Documentar**: Atualizar documentações e comentários relevantes mantendo a integridade do histórico.
-- **Apresentar para Revisão Humana**: Fornecer um resumo transparente das ações para validação e aprovação do usuário.
+- **Apresentar para Revisão Humana**: Fornecer um único relatório consolidado de homologação (**Gate 2: Homologação**).
+- **Staging Nominal Controlado**: Sob instrução humana, estagiar estritamente os arquivos autorizados via `git add <arquivo1> <arquivo2>` (proibido `git add .` ou `git add -A`).
+- **Checkpoint Git**: Aguardar autorização humana explícita antes de qualquer commit (**Gate 3: Autorização de Commit**) e autorização obrigatória antes de qualquer push (**Gate 4: Autorização de Push**).
 
 ---
 
-## 4. Diretrizes de Qualidade
+## 4. Diretrizes de Qualidade e Protocolo de Aceleração Controlada
 
-À medida que o código for introduzido, o projeto exigirá verificações contínuas de qualidade adequadas à etapa:
-- **Linting**: Padrões consistentes de formatação e boas práticas estáticas.
-- **Type Checking**: Checagem de tipos estrita (estáticos), impedindo tipos ambíguos ou omissões.
-- **Testes Unitários**: Cobertura das regras de negócio isoladas e funções puras.
-- **Testes de Integração**: Validação de comunicação entre camadas, armazenamento e serviços internos.
-- **Testes End-to-End (E2E)**: Validação dos fluxos completos da perspectiva do usuário quando aplicável.
-- **Segurança e Análise Estática**: Auditorias preventivas contra vulnerabilidades conhecidas.
+O Analyst Personal Workspace utiliza automação determinística de leitura para acelerar o processo sem comprometer nenhum controle de qualidade ou segurança:
 
-> **Regra Inegociável:** É expressamente proibido alterar, enfraquecer, mockar indevidamente ou desabilitar testes apenas para obter status verde artificialmente.
+- **Automação Estritamente de Leitura**: Todos os scripts de validação (`verify`, `check:hygiene`, etc.) são puramente de inspeção. Nenhum script tem permissão para embutir comandos Git de escrita (`git add`, `git commit`, `git push`, `merge`, `reset`, `checkout` destrutivo ou exclusão de branches).
+- **Defesa em Profundidade para Segredos**: A varredura estática de credenciais e tokens em arquivos alterados opera como camada complementar de defesa, jamais substituindo a inspeção humana criteriosa do diff no Gate de Homologação.
+- **Auditoria de Higiene Automática (`check:hygiene`)**: Bloqueia imediatamente a homologação caso detecte:
+  - Trailing whitespace ou conflitos de merge (`git diff --check`);
+  - Arquivos proibidos na working tree (`.env*`, bancos SQLite `*.db*`, artefatos `.next/`, logs `*.log`, relatórios de teste);
+  - Padrões de credenciais conhecidas em arquivos modificados;
+  - Desvio de escopo em relação aos arquivos autorizados no planejamento.
+- **Linting e Tipagem Estrita**: `npm run check:static` garante `eslint` e `tsc --noEmit` 100% limpos.
+- **Suíte de Testes Segura**: `npm run test:safe` executa Vitest com `--fileParallelism=false`, prevenindo contenção de I/O conhecida entre better-sqlite3 e Windows.
+- **Regra Inegociável:** É expressamente proibido alterar, enfraquecer, mockar indevidamente ou desabilitar testes apenas para obter status verde artificialmente.
 
 ---
 
