@@ -198,3 +198,72 @@ export const registrarArestaLinhagemSchema = z.object({
 });
 
 export type RegistrarArestaLinhagemInput = z.infer<typeof registrarArestaLinhagemSchema>;
+
+/**
+ * Schema para validação de tratamento empírico de problema (Subunidade 3.5C)
+ */
+export const validarTratamentoProblemaSchema = z.object({
+  problema_id: z.string().min(1, 'ID do problema é obrigatório.'),
+  autor_tipo: z.enum(['HUMANO', 'IA']).optional(),
+});
+
+export type ValidarTratamentoProblemaSchemaInput = z.infer<typeof validarTratamentoProblemaSchema>;
+
+/**
+ * Schema para validação de Etapa de Transformação (Subunidade 3.5C)
+ */
+export const validarEtapaPreparacaoSchema = z.object({
+  etapa_id: z.string().min(1, 'ID da etapa é obrigatório.'),
+  justificativa: z.string().trim().max(2000).nullable().optional(),
+  autor_tipo: z.enum(['HUMANO', 'IA']).optional(),
+});
+
+export type ValidarEtapaPreparacaoSchemaInput = z.infer<typeof validarEtapaPreparacaoSchema>;
+
+/**
+ * Schema para conclusão da Receita de Preparação (Subunidade 3.5C)
+ */
+export const concluirReceitaPreparacaoSchema = z.object({
+  receita_id: z.string().min(1, 'ID da receita é obrigatório.'),
+  justificativa: z.string().trim().max(2000).nullable().optional(),
+  autor_tipo: z.enum(['HUMANO', 'IA']).optional(),
+});
+
+export type ConcluirReceitaPreparacaoSchemaInput = z.infer<typeof concluirReceitaPreparacaoSchema>;
+
+/**
+ * Schema para autorização de Dataset para Análise (Subunidade 3.5C)
+ */
+export const autorizarDatasetAnaliseSchema = z.object({
+  demanda_id: z.string().min(1, 'ID da demanda é obrigatório.'),
+  ativo_dados_id: z.string().min(1, 'ID do ativo de dados é obrigatório.'),
+  receita_preparacao_id: z.string().nullable().optional(),
+  versao_rotulo: z
+    .string()
+    .trim()
+    .min(1, 'O rótulo de versão é obrigatório.')
+    .max(50, 'O rótulo de versão deve conter no máximo 50 caracteres.'),
+  justificativa_autorizacao: z
+    .string()
+    .trim()
+    .min(15, 'A justificativa de autorização deve conter no mínimo 15 caracteres explicativos.')
+    .max(3000, 'A justificativa de autorização deve conter no máximo 3000 caracteres.'),
+  autorizado_por_tipo: z.literal('HUMANO').default('HUMANO'),
+});
+
+export type AutorizarDatasetAnaliseSchemaInput = z.infer<typeof autorizarDatasetAnaliseSchema>;
+
+/**
+ * Schema para revogação de Dataset Autorizado (Subunidade 3.5C)
+ */
+export const revogarAutorizacaoDatasetSchema = z.object({
+  autorizacao_id: z.string().min(1, 'ID da autorização é obrigatório.'),
+  motivo_revogacao: z
+    .string()
+    .trim()
+    .min(15, 'O motivo da revogação deve conter no mínimo 15 caracteres explicativos.')
+    .max(3000, 'O motivo da revogação deve conter no máximo 3000 caracteres.'),
+  autor_tipo: z.enum(['HUMANO', 'IA']).optional(),
+});
+
+export type RevogarAutorizacaoDatasetSchemaInput = z.infer<typeof revogarAutorizacaoDatasetSchema>;

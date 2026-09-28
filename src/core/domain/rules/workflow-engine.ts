@@ -22,6 +22,24 @@ export interface ContextoTransicao {
   validacoesPendentes?: number;
   entregaveisHomologados?: boolean;
   qualityGate?: ResultadoQualityGate;
+  // Governança 3.5C (Dataset Autorizado e Integridade)
+  datasetAutorizado?: {
+    id: string;
+    status: string;
+    ativo_dados_id: string;
+    hash_sha256_snapshot: string;
+    receita_preparacao_id?: string | null;
+  } | null;
+  ativoAutorizado?: {
+    id: string;
+    status: string;
+    hash_sha256: string;
+  } | null;
+  receitaPreparacao?: {
+    id: string;
+    status: string;
+  } | null;
+  problemasPendentesDeTratamento?: number;
 }
 
 export interface ResultadoValidacaoTransicao {
@@ -194,6 +212,44 @@ export class WorkflowEngine {
           return {
             valida: false,
             mensagem: `O avanço com Quality Gate em ressalva exige justificativa formal com no mínimo 15 caracteres. ${contexto.qualityGate.motivo}`,
+          };
+        }
+      }
+
+      // Governança 3.5C: Verificação de Dataset Autorizado para Análise e Integridade
+      if (contexto.datasetAutorizado !== undefined) {
+        if (!contexto.datasetAutorizado || contexto.datasetAutorizado.status !== 'VIGENTE') {
+          return {
+            valida: false,
+            mensagem: 'Não é permitido avançar para Em Modelagem e Análise sem um Dataset Autorizado para Análise no status VIGENTE.',
+          };
+        }
+
+        if (!contexto.ativoAutorizado || contexto.ativoAutorizado.status !== 'ATIVO') {
+          return {
+            valida: false,
+            mensagem: 'O ativo de dados vinculado ao dataset autorizado não é o ativo vigente da demanda.',
+          };
+        }
+
+        if (contexto.ativoAutorizado.hash_sha256 !== contexto.datasetAutorizado.hash_sha256_snapshot) {
+          return {
+            valida: false,
+            mensagem: 'Violação de integridade física: o hash SHA-256 do arquivo diverge do snapshot registrado na autorização.',
+          };
+        }
+
+        if (contexto.datasetAutorizado.receita_preparacao_id && contexto.receitaPreparacao?.status !== 'CONCLUIDA') {
+          return {
+            valida: false,
+            mensagem: 'A receita de preparação associada ao dataset autorizado deve estar no status CONCLUIDA.',
+          };
+        }
+
+        if (contexto.problemasPendentesDeTratamento !== undefined && contexto.problemasPendentesDeTratamento > 0) {
+          return {
+            valida: false,
+            mensagem: `Existem ${contexto.problemasPendentesDeTratamento} problema(s) com plano de tratamento no pipeline que não foram empiricamente resolvidos.`,
           };
         }
       }
