@@ -57,6 +57,13 @@
       "when": 1790559097017,
       "tag": "0007_sudden_mephisto",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1790632197578,
+      "tag": "0008_certain_kabuki",
+      "breakpoints": true
     }
   ]
 }

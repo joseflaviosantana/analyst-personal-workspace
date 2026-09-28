@@ -336,6 +336,171 @@ export const datasetsAutorizados = sqliteTable(
 );
 
 /**
+ * Modelos Analíticos (V1 — Subunidade 3.6A / Domínio de Modelagem)
+ * Representa a raiz da modelagem dimensional e semântica de uma demanda.
+ * Índice Único Parcial garante que apenas 1 modelo pode estar HOMOLOGADO por demanda.
+ */
+export const modelosAnaliticos = sqliteTable(
+  'modelos_analiticos',
+  {
+    id: text('id').primaryKey(),
+    demanda_id: text('demanda_id')
+      .notNull()
+      .references(() => demandas.id, { onDelete: 'cascade' }),
+    dataset_autorizado_id: text('dataset_autorizado_id')
+      .notNull()
+      .references(() => datasetsAutorizados.id, { onDelete: 'cascade' }),
+    nome: text('nome').notNull(),
+    descricao: text('descricao'),
+    tipo_arquitetura: text('tipo_arquitetura').notNull().default('ESTRELA'),
+    status: text('status').notNull().default('RASCUNHO'),
+    homologado_em: text('homologado_em'),
+    homologado_por: text('homologado_por'),
+    justificativa_homologacao: text('justificativa_homologacao'),
+    revogado_em: text('revogado_em'),
+    motivo_revogacao: text('motivo_revogacao'),
+    criado_em: text('criado_em').notNull(),
+    atualizado_em: text('atualizado_em').notNull(),
+  },
+  (table) => ({
+    uniqueHomologadoPorDemanda: uniqueIndex('idx_unique_modelo_analitico_homologado')
+      .on(table.demanda_id)
+      .where(sql`status = 'HOMOLOGADO'`),
+    demandaIdx: index('idx_modelos_analiticos_demanda').on(table.demanda_id),
+    datasetIdx: index('idx_modelos_analiticos_dataset').on(table.dataset_autorizado_id),
+  })
+);
+
+/**
+ * Entidades Analíticas (V1 — Subunidade 3.6A / Domínio de Modelagem)
+ * Tabelas conceituais do modelo (Fato ou Dimensão).
+ */
+export const entidadesAnaliticas = sqliteTable(
+  'entidades_analiticas',
+  {
+    id: text('id').primaryKey(),
+    modelo_id: text('modelo_id')
+      .notNull()
+      .references(() => modelosAnaliticos.id, { onDelete: 'cascade' }),
+    ativo_dados_id: text('ativo_dados_id')
+      .references(() => ativosDados.id, { onDelete: 'set null' }),
+    nome: text('nome').notNull(),
+    tipo: text('tipo').notNull(),
+    papel: text('papel').notNull().default('DIMENSAO_PADRAO'),
+    origem_tipo: text('origem_tipo').notNull().default('DATASET_AUTORIZADO'),
+    descricao: text('descricao'),
+    ordem_apresentacao: integer('ordem_apresentacao').notNull().default(0),
+    criado_em: text('criado_em').notNull(),
+    atualizado_em: text('atualizado_em').notNull(),
+  },
+  (table) => ({
+    modeloIdx: index('idx_entidades_analiticas_modelo').on(table.modelo_id),
+    ativoIdx: index('idx_entidades_analiticas_ativo').on(table.ativo_dados_id),
+  })
+);
+
+/**
+ * Atributos Analíticos (V1 — Subunidade 3.6A / Domínio de Modelagem)
+ * Colunas/campos das entidades com tipagem, papel dimensional e formato.
+ */
+export const atributosAnaliticos = sqliteTable(
+  'atributos_analiticos',
+  {
+    id: text('id').primaryKey(),
+    entidade_id: text('entidade_id')
+      .notNull()
+      .references(() => entidadesAnaliticas.id, { onDelete: 'cascade' }),
+    nome_original: text('nome_original').notNull(),
+    nome_amigavel: text('nome_amigavel').notNull(),
+    tipo_dado: text('tipo_dado').notNull().default('TEXTO'),
+    papel: text('papel').notNull().default('ATRIBUTO_DESCRITIVO'),
+    ordem: integer('ordem').notNull().default(0),
+    oculto: integer('oculto').notNull().default(0),
+    descricao: text('descricao'),
+    formato_exibicao: text('formato_exibicao'),
+    criado_em: text('criado_em').notNull(),
+    atualizado_em: text('atualizado_em').notNull(),
+  },
+  (table) => ({
+    entidadeIdx: index('idx_atributos_analiticos_entidade').on(table.entidade_id),
+  })
+);
+
+/**
+ * Relacionamentos Analíticos (V1 — Subunidade 3.6A / Domínio de Modelagem)
+ * Conexões relacionais entre entidades analíticas.
+ * Suporta cardinalidade N:M e filtro bidirecional registrando justificativa (M-03).
+ */
+export const relacionamentosAnaliticos = sqliteTable(
+  'relacionamentos_analiticos',
+  {
+    id: text('id').primaryKey(),
+    modelo_id: text('modelo_id')
+      .notNull()
+      .references(() => modelosAnaliticos.id, { onDelete: 'cascade' }),
+    entidade_origem_id: text('entidade_origem_id')
+      .notNull()
+      .references(() => entidadesAnaliticas.id, { onDelete: 'cascade' }),
+    atributo_origem_id: text('atributo_origem_id')
+      .notNull()
+      .references(() => atributosAnaliticos.id, { onDelete: 'cascade' }),
+    entidade_destino_id: text('entidade_destino_id')
+      .notNull()
+      .references(() => entidadesAnaliticas.id, { onDelete: 'cascade' }),
+    atributo_destino_id: text('atributo_destino_id')
+      .notNull()
+      .references(() => atributosAnaliticos.id, { onDelete: 'cascade' }),
+    tipo_relacionamento: text('tipo_relacionamento').notNull().default('MUITOS_PARA_UM'),
+    direcao_filtro: text('direcao_filtro').notNull().default('UNIDIRECIONAL'),
+    ativo: integer('ativo').notNull().default(1),
+    justificativa: text('justificativa'),
+    criado_em: text('criado_em').notNull(),
+    atualizado_em: text('atualizado_em').notNull(),
+  },
+  (table) => ({
+    modeloIdx: index('idx_relacionamentos_analiticos_modelo').on(table.modelo_id),
+    origemIdx: index('idx_relacionamentos_analiticos_origem').on(table.entidade_origem_id),
+    destinoIdx: index('idx_relacionamentos_analiticos_destino').on(table.entidade_destino_id),
+  })
+);
+
+/**
+ * Métricas Analíticas (V1 — Subunidade 3.6A / Domínio de Modelagem)
+ * Indicadores semânticos com linhagem semântica explícita (Ajuste 5) e rastreabilidade de negócio (Ajuste 6).
+ */
+export const metricasAnaliticas = sqliteTable(
+  'metricas_analiticas',
+  {
+    id: text('id').primaryKey(),
+    modelo_id: text('modelo_id')
+      .notNull()
+      .references(() => modelosAnaliticos.id, { onDelete: 'cascade' }),
+    entidade_id: text('entidade_id')
+      .references(() => entidadesAnaliticas.id, { onDelete: 'set null' }),
+    nome: text('nome').notNull(),
+    descricao: text('descricao'),
+    tipo_agregacao: text('tipo_agregacao').notNull().default('SOMA'),
+    tipo_aditividade: text('tipo_aditividade').notNull().default('TOTALMENTE_ADITIVA'),
+    formula_declarativa: text('formula_declarativa').notNull(),
+    unidade_medida: text('unidade_medida').notNull().default('MOEDA'),
+    formato_exibicao: text('formato_exibicao'),
+    status: text('status').notNull().default('RASCUNHO'),
+    atributos_dependentes_ids: text('atributos_dependentes_ids').notNull().default('[]'),
+    metricas_dependentes_ids: text('metricas_dependentes_ids').notNull().default('[]'),
+    pergunta_negocio_associada: text('pergunta_negocio_associada'),
+    objetivo_negocio_associado: text('objetivo_negocio_associado'),
+    ordem: integer('ordem').notNull().default(0),
+    criado_em: text('criado_em').notNull(),
+    atualizado_em: text('atualizado_em').notNull(),
+  },
+  (table) => ({
+    modeloIdx: index('idx_metricas_analiticas_modelo').on(table.modelo_id),
+    entidadeIdx: index('idx_metricas_analiticas_entidade').on(table.entidade_id),
+  })
+);
+
+
+/**
  * Relacionamentos declarativos Drizzle ORM
  */
 export const projetosRelations = relations(projetos, ({ many }) => ({
@@ -354,6 +519,7 @@ export const demandasRelations = relations(demandas, ({ one, many }) => ({
   receitasPreparacao: many(receitasPreparacao),
   linhagemAtivos: many(linhagemAtivos),
   datasetsAutorizados: many(datasetsAutorizados),
+  modelosAnaliticos: many(modelosAnaliticos),
 }));
 
 export const trilhaAuditoriaRelations = relations(trilhaAuditoria, ({ one }) => ({
@@ -479,7 +645,7 @@ export const linhagemAtivosRelations = relations(linhagemAtivos, ({ one }) => ({
   }),
 }));
 
-export const datasetsAutorizadosRelations = relations(datasetsAutorizados, ({ one }) => ({
+export const datasetsAutorizadosRelations = relations(datasetsAutorizados, ({ one, many }) => ({
   demanda: one(demandas, {
     fields: [datasetsAutorizados.demanda_id],
     references: [demandas.id],
@@ -496,6 +662,77 @@ export const datasetsAutorizadosRelations = relations(datasetsAutorizados, ({ on
     fields: [datasetsAutorizados.receita_preparacao_id],
     references: [receitasPreparacao.id],
   }),
+  modelosAnaliticos: many(modelosAnaliticos),
 }));
 
+export const modelosAnaliticosRelations = relations(modelosAnaliticos, ({ one, many }) => ({
+  demanda: one(demandas, {
+    fields: [modelosAnaliticos.demanda_id],
+    references: [demandas.id],
+  }),
+  datasetAutorizado: one(datasetsAutorizados, {
+    fields: [modelosAnaliticos.dataset_autorizado_id],
+    references: [datasetsAutorizados.id],
+  }),
+  entidades: many(entidadesAnaliticas),
+  relacionamentos: many(relacionamentosAnaliticos),
+  metricas: many(metricasAnaliticas),
+}));
 
+export const entidadesAnaliticasRelations = relations(entidadesAnaliticas, ({ one, many }) => ({
+  modelo: one(modelosAnaliticos, {
+    fields: [entidadesAnaliticas.modelo_id],
+    references: [modelosAnaliticos.id],
+  }),
+  ativoDados: one(ativosDados, {
+    fields: [entidadesAnaliticas.ativo_dados_id],
+    references: [ativosDados.id],
+  }),
+  atributos: many(atributosAnaliticos),
+  metricas: many(metricasAnaliticas),
+}));
+
+export const atributosAnaliticosRelations = relations(atributosAnaliticos, ({ one }) => ({
+  entidade: one(entidadesAnaliticas, {
+    fields: [atributosAnaliticos.entidade_id],
+    references: [entidadesAnaliticas.id],
+  }),
+}));
+
+export const relacionamentosAnaliticosRelations = relations(relacionamentosAnaliticos, ({ one }) => ({
+  modelo: one(modelosAnaliticos, {
+    fields: [relacionamentosAnaliticos.modelo_id],
+    references: [modelosAnaliticos.id],
+  }),
+  entidadeOrigem: one(entidadesAnaliticas, {
+    fields: [relacionamentosAnaliticos.entidade_origem_id],
+    references: [entidadesAnaliticas.id],
+    relationName: 'relacionamentoOrigem',
+  }),
+  atributoOrigem: one(atributosAnaliticos, {
+    fields: [relacionamentosAnaliticos.atributo_origem_id],
+    references: [atributosAnaliticos.id],
+    relationName: 'atributoOrigem',
+  }),
+  entidadeDestino: one(entidadesAnaliticas, {
+    fields: [relacionamentosAnaliticos.entidade_destino_id],
+    references: [entidadesAnaliticas.id],
+    relationName: 'relacionamentoDestino',
+  }),
+  atributoDestino: one(atributosAnaliticos, {
+    fields: [relacionamentosAnaliticos.atributo_destino_id],
+    references: [atributosAnaliticos.id],
+    relationName: 'atributoDestino',
+  }),
+}));
+
+export const metricasAnaliticasRelations = relations(metricasAnaliticas, ({ one }) => ({
+  modelo: one(modelosAnaliticos, {
+    fields: [metricasAnaliticas.modelo_id],
+    references: [modelosAnaliticos.id],
+  }),
+  entidade: one(entidadesAnaliticas, {
+    fields: [metricasAnaliticas.entidade_id],
+    references: [entidadesAnaliticas.id],
+  }),
+}));
