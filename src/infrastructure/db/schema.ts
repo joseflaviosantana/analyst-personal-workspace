@@ -1,5 +1,5 @@
-import { relations } from 'drizzle-orm';
-import { AnySQLiteColumn, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { relations, sql } from 'drizzle-orm';
+import { AnySQLiteColumn, index, integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 /**
  * Tabela de controle de integridade e metadados do sistema (Bootstrap Técnico)
@@ -106,6 +106,7 @@ export const ativosDados = sqliteTable('ativos_dados', {
   total_colunas: integer('total_colunas').notNull().default(0),
   hash_sha256: text('hash_sha256').notNull(),
   status: text('status').notNull().default('CADASTRADO'),
+  categoria_ativo: text('categoria_ativo').notNull().default('BRUTO_RECEBIDO'),
   schema_inferido: text('schema_inferido'),
   data_recebimento: text('data_recebimento').notNull(),
   criado_em: text('criado_em').notNull(),
@@ -207,6 +208,134 @@ export const problemasQualidade = sqliteTable('problemas_qualidade', {
 });
 
 /**
+ * Receitas de Preparação (V1 — Subunidade 3.5A / Domínio de Preparação)
+ * Plano e registro formal auditável de transformações da demanda.
+ * Cardinalidade: Demanda 1 → N ReceitasPreparacao.
+ */
+export const receitasPreparacao = sqliteTable('receitas_preparacao', {
+  id: text('id').primaryKey(),
+  demanda_id: text('demanda_id')
+    .notNull()
+    .references(() => demandas.id, { onDelete: 'cascade' }),
+  titulo: text('titulo').notNull(),
+  descricao: text('descricao'),
+  status: text('status').notNull().default('RASCUNHO'),
+  versao: integer('versao').notNull().default(1),
+  criado_em: text('criado_em').notNull(),
+  atualizado_em: text('atualizado_em').notNull(),
+}, (table) => ({
+  idxReceitasDemanda: index('idx_receitas_demanda').on(table.demanda_id),
+}));
+
+/**
+ * Etapas de Transformação (V1 — Subunidade 3.5A / Domínio de Preparação)
+ * Operações individuais pertencentes a uma receita de preparação.
+ * Cardinalidade: ReceitaPreparacao 1 → N EtapasTransformacao.
+ */
+export const etapasTransformacao = sqliteTable('etapas_transformacao', {
+  id: text('id').primaryKey(),
+  receita_id: text('receita_id')
+    .notNull()
+    .references(() => receitasPreparacao.id, { onDelete: 'cascade' }),
+  ordem: integer('ordem').notNull(),
+  tipo_operacao: text('tipo_operacao').notNull(),
+  capacidade_ferramenta: text('capacidade_ferramenta').notNull(),
+  ferramenta_nome: text('ferramenta_nome').notNull(),
+  ferramenta_versao: text('ferramenta_versao'),
+  descricao: text('descricao').notNull(),
+  especificacao_tecnica: text('especificacao_tecnica'),
+  status: text('status').notNull().default('PLANEJADA'),
+  justificativa: text('justificativa'),
+  criado_em: text('criado_em').notNull(),
+  atualizado_em: text('atualizado_em').notNull(),
+}, (table) => ({
+  idxEtapasReceitaOrdem: index('idx_etapas_receita_ordem').on(table.receita_id, table.ordem),
+}));
+
+/**
+ * Associação N:M entre Etapas de Transformação e Problemas de Qualidade (Subunidade 3.5A)
+ * Mapeia quais transformações atuam sobre quais problemas e vice-versa.
+ * ON DELETE RESTRICT no problema impede exclusão acidental da anomalia vinculada.
+ */
+export const etapasProblemasQualidade = sqliteTable('etapas_problemas_qualidade', {
+  id: text('id').primaryKey(),
+  etapa_transformacao_id: text('etapa_transformacao_id')
+    .notNull()
+    .references(() => etapasTransformacao.id, { onDelete: 'cascade' }),
+  problema_qualidade_id: text('problema_qualidade_id')
+    .notNull()
+    .references(() => problemasQualidade.id, { onDelete: 'restrict' }),
+  criado_em: text('criado_em').notNull(),
+}, (table) => ({
+  idxEtapasProblemasLookup: index('idx_etapas_problemas_lookup').on(table.etapa_transformacao_id, table.problema_qualidade_id),
+}));
+
+/**
+ * Linhagem de Ativos (V1 — Subunidade 3.5A / Domínio de Preparação)
+ * Arestas direcionadas do grafo acíclico de dados (Origem -> Destino).
+ * ON DELETE RESTRICT em ambos os polos protege o histórico consumado.
+ * ON DELETE RESTRICT na etapa protege a referência histórica imutável.
+ */
+export const linhagemAtivos = sqliteTable('linhagem_ativos', {
+  id: text('id').primaryKey(),
+  demanda_id: text('demanda_id')
+    .notNull()
+    .references(() => demandas.id, { onDelete: 'cascade' }),
+  ativo_origem_id: text('ativo_origem_id')
+    .notNull()
+    .references(() => ativosDados.id, { onDelete: 'restrict' }),
+  ativo_destino_id: text('ativo_destino_id')
+    .notNull()
+    .references(() => ativosDados.id, { onDelete: 'restrict' }),
+  etapa_transformacao_id: text('etapa_transformacao_id')
+    .references(() => etapasTransformacao.id, { onDelete: 'restrict' }),
+  papel_entrada: text('papel_entrada').notNull().default('ORIGEM_UNICA'),
+  criado_em: text('criado_em').notNull(),
+}, (table) => ({
+  idxLinhagemOrigem: index('idx_linhagem_origem').on(table.ativo_origem_id),
+  idxLinhagemDestino: index('idx_linhagem_destino').on(table.ativo_destino_id),
+  idxLinhagemDemanda: index('idx_linhagem_demanda').on(table.demanda_id),
+}));
+
+/**
+ * Datasets Autorizados para Análise (V1 — Subunidade 3.5A / Domínio de Preparação)
+ * Homologação formal do dataset para alimentar a Fase de Modelagem e Análise.
+ * ON DELETE RESTRICT protege o ativo, o diagnóstico atestador e a receita.
+ * Índice Único Parcial garante fisicamente que apenas 1 dataset pode estar VIGENTE por demanda.
+ */
+export const datasetsAutorizados = sqliteTable(
+  'datasets_autorizados',
+  {
+    id: text('id').primaryKey(),
+    demanda_id: text('demanda_id')
+      .notNull()
+      .references(() => demandas.id, { onDelete: 'cascade' }),
+    ativo_dados_id: text('ativo_dados_id')
+      .notNull()
+      .references(() => ativosDados.id, { onDelete: 'restrict' }),
+    diagnostico_qualidade_id: text('diagnostico_qualidade_id')
+      .notNull()
+      .references(() => diagnosticosQualidade.id, { onDelete: 'restrict' }),
+    receita_preparacao_id: text('receita_preparacao_id')
+      .references(() => receitasPreparacao.id, { onDelete: 'restrict' }),
+    versao_rotulo: text('versao_rotulo').notNull(),
+    hash_sha256_snapshot: text('hash_sha256_snapshot').notNull(),
+    status: text('status').notNull().default('VIGENTE'),
+    justificativa_autorizacao: text('justificativa_autorizacao').notNull(),
+    autorizado_por_tipo: text('autorizado_por_tipo').notNull().default('HUMANO'),
+    restricoes_aceitas_snapshot: text('restricoes_aceitas_snapshot').notNull().default('[]'),
+    autorizado_em: text('autorizado_em').notNull(),
+    revogado_em: text('revogado_em'),
+    motivo_revogacao: text('motivo_revogacao'),
+  },
+  (table) => ({
+    uniqueVigentePorDemanda: uniqueIndex('idx_unique_dataset_autorizado_vigente')
+      .on(table.demanda_id)
+      .where(sql`status = 'VIGENTE'`),
+  })
+);
+
+/**
  * Relacionamentos declarativos Drizzle ORM
  */
 export const projetosRelations = relations(projetos, ({ many }) => ({
@@ -222,6 +351,9 @@ export const demandasRelations = relations(demandas, ({ one, many }) => ({
   ativosDados: many(ativosDados),
   diagnosticosQualidade: many(diagnosticosQualidade),
   problemasQualidade: many(problemasQualidade),
+  receitasPreparacao: many(receitasPreparacao),
+  linhagemAtivos: many(linhagemAtivos),
+  datasetsAutorizados: many(datasetsAutorizados),
 }));
 
 export const trilhaAuditoriaRelations = relations(trilhaAuditoria, ({ one }) => ({
@@ -247,6 +379,13 @@ export const ativosDadosRelations = relations(ativosDados, ({ one, many }) => ({
   diagnosticosQualidade: many(diagnosticosQualidade),
   problemasQualidade: many(problemasQualidade),
   regrasQualidade: many(regrasQualidade),
+  linhagensComoOrigem: many(linhagemAtivos, {
+    relationName: 'linhagemOrigem',
+  }),
+  linhagensComoDestino: many(linhagemAtivos, {
+    relationName: 'linhagemDestino',
+  }),
+  datasetsAutorizados: many(datasetsAutorizados),
 }));
 
 export const diagnosticosQualidadeRelations = relations(diagnosticosQualidade, ({ one, many }) => ({
@@ -259,6 +398,7 @@ export const diagnosticosQualidadeRelations = relations(diagnosticosQualidade, (
     references: [demandas.id],
   }),
   problemas: many(problemasQualidade),
+  datasetsAutorizados: many(datasetsAutorizados),
 }));
 
 export const regrasQualidadeRelations = relations(regrasQualidade, ({ one, many }) => ({
@@ -269,7 +409,7 @@ export const regrasQualidadeRelations = relations(regrasQualidade, ({ one, many 
   problemas: many(problemasQualidade),
 }));
 
-export const problemasQualidadeRelations = relations(problemasQualidade, ({ one }) => ({
+export const problemasQualidadeRelations = relations(problemasQualidade, ({ one, many }) => ({
   diagnostico: one(diagnosticosQualidade, {
     fields: [problemasQualidade.diagnostico_id],
     references: [diagnosticosQualidade.id],
@@ -285,6 +425,76 @@ export const problemasQualidadeRelations = relations(problemasQualidade, ({ one 
   regra: one(regrasQualidade, {
     fields: [problemasQualidade.regra_id],
     references: [regrasQualidade.id],
+  }),
+  etapasPreparacao: many(etapasProblemasQualidade),
+}));
+
+export const receitasPreparacaoRelations = relations(receitasPreparacao, ({ one, many }) => ({
+  demanda: one(demandas, {
+    fields: [receitasPreparacao.demanda_id],
+    references: [demandas.id],
+  }),
+  etapas: many(etapasTransformacao),
+  datasetsAutorizados: many(datasetsAutorizados),
+}));
+
+export const etapasTransformacaoRelations = relations(etapasTransformacao, ({ one, many }) => ({
+  receita: one(receitasPreparacao, {
+    fields: [etapasTransformacao.receita_id],
+    references: [receitasPreparacao.id],
+  }),
+  problemasVinculados: many(etapasProblemasQualidade),
+  linhagens: many(linhagemAtivos),
+}));
+
+export const etapasProblemasQualidadeRelations = relations(etapasProblemasQualidade, ({ one }) => ({
+  etapa: one(etapasTransformacao, {
+    fields: [etapasProblemasQualidade.etapa_transformacao_id],
+    references: [etapasTransformacao.id],
+  }),
+  problema: one(problemasQualidade, {
+    fields: [etapasProblemasQualidade.problema_qualidade_id],
+    references: [problemasQualidade.id],
+  }),
+}));
+
+export const linhagemAtivosRelations = relations(linhagemAtivos, ({ one }) => ({
+  demanda: one(demandas, {
+    fields: [linhagemAtivos.demanda_id],
+    references: [demandas.id],
+  }),
+  ativoOrigem: one(ativosDados, {
+    fields: [linhagemAtivos.ativo_origem_id],
+    references: [ativosDados.id],
+    relationName: 'linhagemOrigem',
+  }),
+  ativoDestino: one(ativosDados, {
+    fields: [linhagemAtivos.ativo_destino_id],
+    references: [ativosDados.id],
+    relationName: 'linhagemDestino',
+  }),
+  etapa: one(etapasTransformacao, {
+    fields: [linhagemAtivos.etapa_transformacao_id],
+    references: [etapasTransformacao.id],
+  }),
+}));
+
+export const datasetsAutorizadosRelations = relations(datasetsAutorizados, ({ one }) => ({
+  demanda: one(demandas, {
+    fields: [datasetsAutorizados.demanda_id],
+    references: [demandas.id],
+  }),
+  ativoDados: one(ativosDados, {
+    fields: [datasetsAutorizados.ativo_dados_id],
+    references: [ativosDados.id],
+  }),
+  diagnosticoQualidade: one(diagnosticosQualidade, {
+    fields: [datasetsAutorizados.diagnostico_qualidade_id],
+    references: [diagnosticosQualidade.id],
+  }),
+  receitaPreparacao: one(receitasPreparacao, {
+    fields: [datasetsAutorizados.receita_preparacao_id],
+    references: [receitasPreparacao.id],
   }),
 }));
 

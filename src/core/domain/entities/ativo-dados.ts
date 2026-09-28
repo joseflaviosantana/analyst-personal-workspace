@@ -1,3 +1,4 @@
+import { CategoriaAtivoDados } from '../enums/categoria-ativo-dados';
 import { FormatoArquivo } from '../enums/formato-arquivo';
 import { StatusAtivoDados } from '../enums/status-ativo-dados';
 
@@ -25,6 +26,7 @@ export interface AtivoDados {
   total_colunas: number;
   hash_sha256: string;
   status: StatusAtivoDados;
+  categoria_ativo?: CategoriaAtivoDados;
   schema_inferido: string | null;
   data_recebimento: string;
   criado_em: string;

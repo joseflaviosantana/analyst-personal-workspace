@@ -1,0 +1,1692 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "fcfe67a5-e2fb-4659-9f29-f5a1dddd50fd",
+  "prevId": "77b5aace-cbce-4054-8a21-681edf7bf2f3",
+  "tables": {
+    "ativos_dados": {
+      "name": "ativos_dados",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "demanda_id": {
+          "name": "demanda_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "nome_arquivo": {
+          "name": "nome_arquivo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "caminho_local": {
+          "name": "caminho_local",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "formato": {
+          "name": "formato",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "origem": {
+          "name": "origem",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "descricao_conteudo": {
+          "name": "descricao_conteudo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "granularidade": {
+          "name": "granularidade",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "periodo_inicio": {
+          "name": "periodo_inicio",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "periodo_fim": {
+          "name": "periodo_fim",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "versao": {
+          "name": "versao",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "substitui_ativo_id": {
+          "name": "substitui_ativo_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "tamanho_bytes": {
+          "name": "tamanho_bytes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "total_linhas": {
+          "name": "total_linhas",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "total_colunas": {
+          "name": "total_colunas",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "hash_sha256": {
+          "name": "hash_sha256",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'CADASTRADO'"
+        },
+        "categoria_ativo": {
+          "name": "categoria_ativo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'BRUTO_RECEBIDO'"
+        },
+        "schema_inferido": {
+          "name": "schema_inferido",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "data_recebimento": {
+          "name": "data_recebimento",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "atualizado_em": {
+          "name": "atualizado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "ativos_dados_demanda_id_demandas_id_fk": {
+          "name": "ativos_dados_demanda_id_demandas_id_fk",
+          "tableFrom": "ativos_dados",
+          "tableTo": "demandas",
+          "columnsFrom": [
+            "demanda_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "ativos_dados_substitui_ativo_id_ativos_dados_id_fk": {
+          "name": "ativos_dados_substitui_ativo_id_ativos_dados_id_fk",
+          "tableFrom": "ativos_dados",
+          "tableTo": "ativos_dados",
+          "columnsFrom": [
+            "substitui_ativo_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "bootstrap_registros": {
+      "name": "bootstrap_registros",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "titulo": {
+          "name": "titulo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'OPERACIONAL'"
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "atualizado_em": {
+          "name": "atualizado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "datasets_autorizados": {
+      "name": "datasets_autorizados",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "demanda_id": {
+          "name": "demanda_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ativo_dados_id": {
+          "name": "ativo_dados_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "diagnostico_qualidade_id": {
+          "name": "diagnostico_qualidade_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "receita_preparacao_id": {
+          "name": "receita_preparacao_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "versao_rotulo": {
+          "name": "versao_rotulo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "hash_sha256_snapshot": {
+          "name": "hash_sha256_snapshot",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'VIGENTE'"
+        },
+        "justificativa_autorizacao": {
+          "name": "justificativa_autorizacao",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "autorizado_por_tipo": {
+          "name": "autorizado_por_tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'HUMANO'"
+        },
+        "restricoes_aceitas_snapshot": {
+          "name": "restricoes_aceitas_snapshot",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'[]'"
+        },
+        "autorizado_em": {
+          "name": "autorizado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "revogado_em": {
+          "name": "revogado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "motivo_revogacao": {
+          "name": "motivo_revogacao",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_unique_dataset_autorizado_vigente": {
+          "name": "idx_unique_dataset_autorizado_vigente",
+          "columns": [
+            "demanda_id"
+          ],
+          "isUnique": true,
+          "where": "status = 'VIGENTE'"
+        }
+      },
+      "foreignKeys": {
+        "datasets_autorizados_demanda_id_demandas_id_fk": {
+          "name": "datasets_autorizados_demanda_id_demandas_id_fk",
+          "tableFrom": "datasets_autorizados",
+          "tableTo": "demandas",
+          "columnsFrom": [
+            "demanda_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "datasets_autorizados_ativo_dados_id_ativos_dados_id_fk": {
+          "name": "datasets_autorizados_ativo_dados_id_ativos_dados_id_fk",
+          "tableFrom": "datasets_autorizados",
+          "tableTo": "ativos_dados",
+          "columnsFrom": [
+            "ativo_dados_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "datasets_autorizados_diagnostico_qualidade_id_diagnosticos_qualidade_id_fk": {
+          "name": "datasets_autorizados_diagnostico_qualidade_id_diagnosticos_qualidade_id_fk",
+          "tableFrom": "datasets_autorizados",
+          "tableTo": "diagnosticos_qualidade",
+          "columnsFrom": [
+            "diagnostico_qualidade_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "datasets_autorizados_receita_preparacao_id_receitas_preparacao_id_fk": {
+          "name": "datasets_autorizados_receita_preparacao_id_receitas_preparacao_id_fk",
+          "tableFrom": "datasets_autorizados",
+          "tableTo": "receitas_preparacao",
+          "columnsFrom": [
+            "receita_preparacao_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "demandas": {
+      "name": "demandas",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "projeto_id": {
+          "name": "projeto_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "titulo": {
+          "name": "titulo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "solicitacao_bruta": {
+          "name": "solicitacao_bruta",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "contexto": {
+          "name": "contexto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "objetivo_inicial": {
+          "name": "objetivo_inicial",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "prazo_esperado": {
+          "name": "prazo_esperado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "restricoes_declaradas": {
+          "name": "restricoes_declaradas",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "estado": {
+          "name": "estado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'NOVA'"
+        },
+        "estado_anterior": {
+          "name": "estado_anterior",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "atualizado_em": {
+          "name": "atualizado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "data_conclusao": {
+          "name": "data_conclusao",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "demandas_projeto_id_projetos_id_fk": {
+          "name": "demandas_projeto_id_projetos_id_fk",
+          "tableFrom": "demandas",
+          "tableTo": "projetos",
+          "columnsFrom": [
+            "projeto_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "diagnosticos_qualidade": {
+      "name": "diagnosticos_qualidade",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ativo_dados_id": {
+          "name": "ativo_dados_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "demanda_id": {
+          "name": "demanda_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "iniciado_em": {
+          "name": "iniciado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "concluido_em": {
+          "name": "concluido_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "duracao_ms": {
+          "name": "duracao_ms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "total_linhas_avaliadas": {
+          "name": "total_linhas_avaliadas",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "total_colunas_avaliadas": {
+          "name": "total_colunas_avaliadas",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "verificacoes_executadas": {
+          "name": "verificacoes_executadas",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'[]'"
+        },
+        "total_problemas_detectados": {
+          "name": "total_problemas_detectados",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "status_execucao": {
+          "name": "status_execucao",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'EM_ANDAMENTO'"
+        },
+        "erro_mensagem": {
+          "name": "erro_mensagem",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "resumo_metricas": {
+          "name": "resumo_metricas",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "atualizado_em": {
+          "name": "atualizado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "diagnosticos_qualidade_ativo_dados_id_ativos_dados_id_fk": {
+          "name": "diagnosticos_qualidade_ativo_dados_id_ativos_dados_id_fk",
+          "tableFrom": "diagnosticos_qualidade",
+          "tableTo": "ativos_dados",
+          "columnsFrom": [
+            "ativo_dados_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "diagnosticos_qualidade_demanda_id_demandas_id_fk": {
+          "name": "diagnosticos_qualidade_demanda_id_demandas_id_fk",
+          "tableFrom": "diagnosticos_qualidade",
+          "tableTo": "demandas",
+          "columnsFrom": [
+            "demanda_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "etapas_problemas_qualidade": {
+      "name": "etapas_problemas_qualidade",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "etapa_transformacao_id": {
+          "name": "etapa_transformacao_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "problema_qualidade_id": {
+          "name": "problema_qualidade_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_etapas_problemas_lookup": {
+          "name": "idx_etapas_problemas_lookup",
+          "columns": [
+            "etapa_transformacao_id",
+            "problema_qualidade_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "etapas_problemas_qualidade_etapa_transformacao_id_etapas_transformacao_id_fk": {
+          "name": "etapas_problemas_qualidade_etapa_transformacao_id_etapas_transformacao_id_fk",
+          "tableFrom": "etapas_problemas_qualidade",
+          "tableTo": "etapas_transformacao",
+          "columnsFrom": [
+            "etapa_transformacao_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "etapas_problemas_qualidade_problema_qualidade_id_problemas_qualidade_id_fk": {
+          "name": "etapas_problemas_qualidade_problema_qualidade_id_problemas_qualidade_id_fk",
+          "tableFrom": "etapas_problemas_qualidade",
+          "tableTo": "problemas_qualidade",
+          "columnsFrom": [
+            "problema_qualidade_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "etapas_transformacao": {
+      "name": "etapas_transformacao",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "receita_id": {
+          "name": "receita_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ordem": {
+          "name": "ordem",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "tipo_operacao": {
+          "name": "tipo_operacao",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "capacidade_ferramenta": {
+          "name": "capacidade_ferramenta",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ferramenta_nome": {
+          "name": "ferramenta_nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ferramenta_versao": {
+          "name": "ferramenta_versao",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "descricao": {
+          "name": "descricao",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "especificacao_tecnica": {
+          "name": "especificacao_tecnica",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'PLANEJADA'"
+        },
+        "justificativa": {
+          "name": "justificativa",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "atualizado_em": {
+          "name": "atualizado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_etapas_receita_ordem": {
+          "name": "idx_etapas_receita_ordem",
+          "columns": [
+            "receita_id",
+            "ordem"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "etapas_transformacao_receita_id_receitas_preparacao_id_fk": {
+          "name": "etapas_transformacao_receita_id_receitas_preparacao_id_fk",
+          "tableFrom": "etapas_transformacao",
+          "tableTo": "receitas_preparacao",
+          "columnsFrom": [
+            "receita_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "linhagem_ativos": {
+      "name": "linhagem_ativos",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "demanda_id": {
+          "name": "demanda_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ativo_origem_id": {
+          "name": "ativo_origem_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ativo_destino_id": {
+          "name": "ativo_destino_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "etapa_transformacao_id": {
+          "name": "etapa_transformacao_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "papel_entrada": {
+          "name": "papel_entrada",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'ORIGEM_UNICA'"
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_linhagem_origem": {
+          "name": "idx_linhagem_origem",
+          "columns": [
+            "ativo_origem_id"
+          ],
+          "isUnique": false
+        },
+        "idx_linhagem_destino": {
+          "name": "idx_linhagem_destino",
+          "columns": [
+            "ativo_destino_id"
+          ],
+          "isUnique": false
+        },
+        "idx_linhagem_demanda": {
+          "name": "idx_linhagem_demanda",
+          "columns": [
+            "demanda_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "linhagem_ativos_demanda_id_demandas_id_fk": {
+          "name": "linhagem_ativos_demanda_id_demandas_id_fk",
+          "tableFrom": "linhagem_ativos",
+          "tableTo": "demandas",
+          "columnsFrom": [
+            "demanda_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "linhagem_ativos_ativo_origem_id_ativos_dados_id_fk": {
+          "name": "linhagem_ativos_ativo_origem_id_ativos_dados_id_fk",
+          "tableFrom": "linhagem_ativos",
+          "tableTo": "ativos_dados",
+          "columnsFrom": [
+            "ativo_origem_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "linhagem_ativos_ativo_destino_id_ativos_dados_id_fk": {
+          "name": "linhagem_ativos_ativo_destino_id_ativos_dados_id_fk",
+          "tableFrom": "linhagem_ativos",
+          "tableTo": "ativos_dados",
+          "columnsFrom": [
+            "ativo_destino_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "linhagem_ativos_etapa_transformacao_id_etapas_transformacao_id_fk": {
+          "name": "linhagem_ativos_etapa_transformacao_id_etapas_transformacao_id_fk",
+          "tableFrom": "linhagem_ativos",
+          "tableTo": "etapas_transformacao",
+          "columnsFrom": [
+            "etapa_transformacao_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "problemas_qualidade": {
+      "name": "problemas_qualidade",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "diagnostico_id": {
+          "name": "diagnostico_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "ativo_dados_id": {
+          "name": "ativo_dados_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "demanda_id": {
+          "name": "demanda_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "categoria": {
+          "name": "categoria",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "titulo": {
+          "name": "titulo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "descricao": {
+          "name": "descricao",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "tabela_afetada": {
+          "name": "tabela_afetada",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "coluna_afetada": {
+          "name": "coluna_afetada",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "total_linhas_afetadas": {
+          "name": "total_linhas_afetadas",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "percentual_linhas_afetadas": {
+          "name": "percentual_linhas_afetadas",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "amostra_evidencias": {
+          "name": "amostra_evidencias",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'[]'"
+        },
+        "severidade": {
+          "name": "severidade",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'PENDENTE'"
+        },
+        "impacto_calculo": {
+          "name": "impacto_calculo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "acao_deliberada": {
+          "name": "acao_deliberada",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "justificativa_deliberacao": {
+          "name": "justificativa_deliberacao",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "deliberado_por_humano": {
+          "name": "deliberado_por_humano",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "deliberado_em": {
+          "name": "deliberado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'ABERTO'"
+        },
+        "origem_deteccao": {
+          "name": "origem_deteccao",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'AUTOMATICA'"
+        },
+        "regra_id": {
+          "name": "regra_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "regra_snapshot": {
+          "name": "regra_snapshot",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "atualizado_em": {
+          "name": "atualizado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "problemas_qualidade_diagnostico_id_diagnosticos_qualidade_id_fk": {
+          "name": "problemas_qualidade_diagnostico_id_diagnosticos_qualidade_id_fk",
+          "tableFrom": "problemas_qualidade",
+          "tableTo": "diagnosticos_qualidade",
+          "columnsFrom": [
+            "diagnostico_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "problemas_qualidade_ativo_dados_id_ativos_dados_id_fk": {
+          "name": "problemas_qualidade_ativo_dados_id_ativos_dados_id_fk",
+          "tableFrom": "problemas_qualidade",
+          "tableTo": "ativos_dados",
+          "columnsFrom": [
+            "ativo_dados_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "problemas_qualidade_demanda_id_demandas_id_fk": {
+          "name": "problemas_qualidade_demanda_id_demandas_id_fk",
+          "tableFrom": "problemas_qualidade",
+          "tableTo": "demandas",
+          "columnsFrom": [
+            "demanda_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "problemas_qualidade_regra_id_regras_qualidade_id_fk": {
+          "name": "problemas_qualidade_regra_id_regras_qualidade_id_fk",
+          "tableFrom": "problemas_qualidade",
+          "tableTo": "regras_qualidade",
+          "columnsFrom": [
+            "regra_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "projetos": {
+      "name": "projetos",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "nome": {
+          "name": "nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "descricao": {
+          "name": "descricao",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'ATIVO'"
+        },
+        "data_inicio": {
+          "name": "data_inicio",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "data_conclusao_prevista": {
+          "name": "data_conclusao_prevista",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "data_conclusao_real": {
+          "name": "data_conclusao_real",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "atualizado_em": {
+          "name": "atualizado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "receitas_preparacao": {
+      "name": "receitas_preparacao",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "demanda_id": {
+          "name": "demanda_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "titulo": {
+          "name": "titulo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "descricao": {
+          "name": "descricao",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'RASCUNHO'"
+        },
+        "versao": {
+          "name": "versao",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "atualizado_em": {
+          "name": "atualizado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_receitas_demanda": {
+          "name": "idx_receitas_demanda",
+          "columns": [
+            "demanda_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "receitas_preparacao_demanda_id_demandas_id_fk": {
+          "name": "receitas_preparacao_demanda_id_demandas_id_fk",
+          "tableFrom": "receitas_preparacao",
+          "tableTo": "demandas",
+          "columnsFrom": [
+            "demanda_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "regras_qualidade": {
+      "name": "regras_qualidade",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ativo_dados_id": {
+          "name": "ativo_dados_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "coluna": {
+          "name": "coluna",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "colunas": {
+          "name": "colunas",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'[]'"
+        },
+        "nome": {
+          "name": "nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "descricao": {
+          "name": "descricao",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "parametros": {
+          "name": "parametros",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'{}'"
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'ATIVA'"
+        },
+        "versao": {
+          "name": "versao",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "atualizado_em": {
+          "name": "atualizado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "regras_qualidade_ativo_dados_id_ativos_dados_id_fk": {
+          "name": "regras_qualidade_ativo_dados_id_ativos_dados_id_fk",
+          "tableFrom": "regras_qualidade",
+          "tableTo": "ativos_dados",
+          "columnsFrom": [
+            "ativo_dados_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "sistema_info": {
+      "name": "sistema_info",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "chave": {
+          "name": "chave",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "valor": {
+          "name": "valor",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "atualizado_em": {
+          "name": "atualizado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "sistema_info_chave_unique": {
+          "name": "sistema_info_chave_unique",
+          "columns": [
+            "chave"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "trilha_auditoria": {
+      "name": "trilha_auditoria",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "demanda_id": {
+          "name": "demanda_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "entidade": {
+          "name": "entidade",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "entidade_id": {
+          "name": "entidade_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "tipo_evento": {
+          "name": "tipo_evento",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "autor_tipo": {
+          "name": "autor_tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "dados_anteriores": {
+          "name": "dados_anteriores",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "dados_novos": {
+          "name": "dados_novos",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "justificativa": {
+          "name": "justificativa",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "timestamp": {
+          "name": "timestamp",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "trilha_auditoria_demanda_id_demandas_id_fk": {
+          "name": "trilha_auditoria_demanda_id_demandas_id_fk",
+          "tableFrom": "trilha_auditoria",
+          "tableTo": "demandas",
+          "columnsFrom": [
+            "demanda_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}

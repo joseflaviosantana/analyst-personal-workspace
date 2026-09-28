@@ -4,6 +4,7 @@ import { ativosDados, trilhaAuditoria } from '../schema';
 import { AtivoDados } from '@/core/domain/entities/ativo-dados';
 import { normalizarFormatoArquivo } from '@/core/domain/enums/formato-arquivo';
 import { normalizarStatusAtivoDados, StatusAtivoDados } from '@/core/domain/enums/status-ativo-dados';
+import { CategoriaAtivoDados, normalizarCategoriaAtivoDados } from '@/core/domain/enums/categoria-ativo-dados';
 import { IAtivoDadosRepository, ReplaceAssetParams } from '@/core/domain/repositories/ativo-dados-repository.interface';
 
 export class SqliteAtivoDadosRepository implements IAtivoDadosRepository {
@@ -32,6 +33,7 @@ export class SqliteAtivoDadosRepository implements IAtivoDadosRepository {
       total_colunas: row.total_colunas,
       hash_sha256: row.hash_sha256,
       status: normalizarStatusAtivoDados(row.status),
+      categoria_ativo: normalizarCategoriaAtivoDados(row.categoria_ativo),
       schema_inferido: row.schema_inferido,
       data_recebimento: row.data_recebimento,
       criado_em: row.criado_em,
@@ -60,6 +62,7 @@ export class SqliteAtivoDadosRepository implements IAtivoDadosRepository {
         total_colunas: asset.total_colunas,
         hash_sha256: asset.hash_sha256,
         status: asset.status,
+        categoria_ativo: asset.categoria_ativo ?? CategoriaAtivoDados.BRUTO_RECEBIDO,
         schema_inferido: asset.schema_inferido,
         data_recebimento: asset.data_recebimento,
         criado_em: asset.criado_em,
@@ -144,6 +147,7 @@ export class SqliteAtivoDadosRepository implements IAtivoDadosRepository {
     if (data.total_colunas !== undefined) updateValues.total_colunas = data.total_colunas;
     if (data.hash_sha256 !== undefined) updateValues.hash_sha256 = data.hash_sha256;
     if (data.status !== undefined) updateValues.status = data.status;
+    if (data.categoria_ativo !== undefined) updateValues.categoria_ativo = data.categoria_ativo;
     if (data.schema_inferido !== undefined) updateValues.schema_inferido = data.schema_inferido;
     if (data.data_recebimento !== undefined) updateValues.data_recebimento = data.data_recebimento;
 
@@ -211,6 +215,7 @@ export class SqliteAtivoDadosRepository implements IAtivoDadosRepository {
           total_colunas: params.novoAtivo.total_colunas,
           hash_sha256: params.novoAtivo.hash_sha256,
           status: StatusAtivoDados.ATIVO,
+          categoria_ativo: params.novoAtivo.categoria_ativo ?? CategoriaAtivoDados.BRUTO_RECEBIDO,
           schema_inferido: params.novoAtivo.schema_inferido,
           data_recebimento: params.novoAtivo.data_recebimento,
           criado_em: params.novoAtivo.criado_em || now,
