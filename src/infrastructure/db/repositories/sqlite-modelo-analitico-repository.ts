@@ -317,6 +317,8 @@ export class SqliteModeloAnaliticoRepository implements IModeloAnaliticoReposito
           homologado_em: timestamp,
           homologado_por: homologadoPor,
           justificativa_homologacao: justificativa,
+          revogado_em: null,
+          motivo_revogacao: null,
           atualizado_em: timestamp,
         })
         .where(eq(modelosAnaliticos.id, id))

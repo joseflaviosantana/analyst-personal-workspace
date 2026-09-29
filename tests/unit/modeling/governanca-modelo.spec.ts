@@ -112,6 +112,8 @@ describe('Governança e Homologação de Modelagem Analítica (Subunidade 3.6C)'
           homologado_em: timestamp,
           homologado_por: homologadoPor,
           justificativa_homologacao: justificativa,
+          revogado_em: null,
+          motivo_revogacao: null,
           atualizado_em: timestamp,
         };
         modelos.set(id, homologado);

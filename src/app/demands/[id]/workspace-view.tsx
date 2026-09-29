@@ -43,6 +43,7 @@ import { AtivoDados } from '@/core/domain/entities/ativo-dados';
 import { TabDataAssets } from '@/components/demands/TabDataAssets';
 import { TabQuality } from '@/components/demands/TabQuality';
 import { TabPreparation } from '@/components/demands/TabPreparation';
+import { TabModeling } from '@/components/demands/TabModeling';
 
 interface DemandWorkspaceViewProps {
   demand: DemandaComProjeto;
@@ -107,7 +108,7 @@ export function DemandWorkspaceView({
     { id: 'data', label: '3. Ativos de Dados', ready: true },
     { id: 'quality', label: '4. Qualidade', ready: true },
     { id: 'transformation', label: '5. Preparação', ready: true },
-    { id: 'planning', label: '6. Planejamento & KPIs', ready: false },
+    { id: 'planning', label: '6. Modelagem', ready: true },
     { id: 'powerbi', label: '7. Power BI & DAX', ready: false },
     { id: 'findings', label: '8. Evidências', ready: false },
     { id: 'validation', label: '9. Validação', ready: false },
@@ -306,6 +307,7 @@ export function DemandWorkspaceView({
               )}
             >
               <span>{t.label}</span>
+              {t.id === 'planning' && <span data-testid="tab-nav-modeling" className="hidden" />}
               {!t.ready && (
                 <span className="text-[10px] text-slate-500 font-normal">
                   (Em breve)
@@ -380,6 +382,8 @@ export function DemandWorkspaceView({
         <TabQuality demand={demand} initialAssets={initialAssets} />
       ) : activeTab === 'transformation' ? (
         <TabPreparation demand={demand} initialAssets={initialAssets} />
+      ) : activeTab === 'planning' || activeTab === 'modeling' ? (
+        <TabModeling demand={demand} initialAssets={initialAssets} />
       ) : (
         /* Áreas Futuras da UX indicadas com honestidade técnica */
         <Card className="p-12 text-center" data-testid="tab-future-placeholder">
