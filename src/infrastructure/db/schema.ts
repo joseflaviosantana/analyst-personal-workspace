@@ -499,6 +499,78 @@ export const metricasAnaliticas = sqliteTable(
   })
 );
 
+/**
+ * Validações e Conciliações Numéricas (V1 — Subunidade 3.7A / FSD CF-16 e v1-domain-model.md Seção 3.16)
+ * Registra testes determinísticos, conciliações numéricas e checks de integridade com tolerância e precisão.
+ * Cardinalidade: Demanda 1 → N Validações.
+ */
+export const validacoesConciliacao = sqliteTable(
+  'validacoes_conciliacao',
+  {
+    id: text('id').primaryKey(),
+    demanda_id: text('demanda_id')
+      .notNull()
+      .references(() => demandas.id, { onDelete: 'cascade' }),
+    modelo_id: text('modelo_id')
+      .references(() => modelosAnaliticos.id, { onDelete: 'set null' }),
+    metrica_id: text('metrica_id')
+      .references(() => metricasAnaliticas.id, { onDelete: 'set null' }),
+    titulo: text('titulo').notNull(),
+    camada: text('camada').notNull(),
+    metodo_verificacao: text('metodo_verificacao').notNull(),
+    base_referencia: text('base_referencia'),
+    valor_esperado: real('valor_esperado'),
+    valor_obtido: real('valor_obtido'),
+    divergencia_absoluta: real('divergencia_absoluta'),
+    divergencia_percentual: real('divergencia_percentual'),
+    tolerancia_permitida: real('tolerancia_permitida').notNull().default(0),
+    unidade_medida: text('unidade_medida'),
+    resultado: text('resultado').notNull().default('PENDENTE_RETESTE'),
+    obrigatoria: integer('obrigatoria', { mode: 'boolean' }).notNull().default(true),
+    acao_corretiva: text('acao_corretiva'),
+    notas_evidencia: text('notas_evidencia'),
+    executado_por: text('executado_por'),
+    executado_em: text('executado_em'),
+    criado_em: text('criado_em').notNull(),
+    atualizado_em: text('atualizado_em').notNull(),
+  },
+  (table) => ({
+    demandaIdIdx: index('idx_validacoes_demanda_id').on(table.demanda_id),
+    resultadoIdx: index('idx_validacoes_resultado').on(table.resultado),
+  })
+);
+
+/**
+ * Entregáveis Profissionais de Demanda (V1 — Subunidade 3.7A / FSD CF-17 e v1-domain-model.md Seção 3.18)
+ * Registra artefatos finais e respectivo aceite formal (com autor, timestamp e justificativa).
+ * Cardinalidade: Demanda 1 → N Entregáveis.
+ */
+export const entregaveisDemanda = sqliteTable(
+  'entregaveis_demanda',
+  {
+    id: text('id').primaryKey(),
+    demanda_id: text('demanda_id')
+      .notNull()
+      .references(() => demandas.id, { onDelete: 'cascade' }),
+    titulo: text('titulo').notNull(),
+    tipo: text('tipo').notNull(),
+    versao: text('versao').notNull().default('1.0'),
+    caminho_arquivo_ou_link: text('caminho_arquivo_ou_link').notNull(),
+    descricao_sumario: text('descricao_sumario'),
+    obrigatorio: integer('obrigatorio', { mode: 'boolean' }).notNull().default(true),
+    status: text('status').notNull().default('DISPONIVEL'),
+    aceite_status: text('aceite_status').notNull().default('PENDENTE'),
+    aceite_justificativa: text('aceite_justificativa'),
+    aceite_por: text('aceite_por'),
+    aceite_em: text('aceite_em'),
+    criado_em: text('criado_em').notNull(),
+    atualizado_em: text('atualizado_em').notNull(),
+  },
+  (table) => ({
+    demandaIdIdx: index('idx_entregaveis_demanda_id').on(table.demanda_id),
+    aceiteStatusIdx: index('idx_entregaveis_aceite_status').on(table.aceite_status),
+  })
+);
 
 /**
  * Relacionamentos declarativos Drizzle ORM
@@ -520,6 +592,8 @@ export const demandasRelations = relations(demandas, ({ one, many }) => ({
   linhagemAtivos: many(linhagemAtivos),
   datasetsAutorizados: many(datasetsAutorizados),
   modelosAnaliticos: many(modelosAnaliticos),
+  validacoesConciliacao: many(validacoesConciliacao),
+  entregaveisDemanda: many(entregaveisDemanda),
 }));
 
 export const trilhaAuditoriaRelations = relations(trilhaAuditoria, ({ one }) => ({
@@ -734,5 +808,27 @@ export const metricasAnaliticasRelations = relations(metricasAnaliticas, ({ one 
   entidade: one(entidadesAnaliticas, {
     fields: [metricasAnaliticas.entidade_id],
     references: [entidadesAnaliticas.id],
+  }),
+}));
+
+export const validacoesConciliacaoRelations = relations(validacoesConciliacao, ({ one }) => ({
+  demanda: one(demandas, {
+    fields: [validacoesConciliacao.demanda_id],
+    references: [demandas.id],
+  }),
+  modelo: one(modelosAnaliticos, {
+    fields: [validacoesConciliacao.modelo_id],
+    references: [modelosAnaliticos.id],
+  }),
+  metrica: one(metricasAnaliticas, {
+    fields: [validacoesConciliacao.metrica_id],
+    references: [metricasAnaliticas.id],
+  }),
+}));
+
+export const entregaveisDemandaRelations = relations(entregaveisDemanda, ({ one }) => ({
+  demanda: one(demandas, {
+    fields: [entregaveisDemanda.demanda_id],
+    references: [demandas.id],
   }),
 }));

@@ -13,6 +13,8 @@ import { SqliteProblemasQualidadeRepository } from '@/infrastructure/db/reposito
 import { SqliteDatasetAutorizadoRepository } from '@/infrastructure/db/repositories/sqlite-dataset-autorizado-repository';
 import { SqliteReceitaPreparacaoRepository } from '@/infrastructure/db/repositories/sqlite-receita-preparacao-repository';
 import { SqliteModeloAnaliticoRepository } from '@/infrastructure/db/repositories/sqlite-modelo-analitico-repository';
+import { SqliteValidacaoConciliacaoRepository } from '@/infrastructure/db/repositories/sqlite-validacao-conciliacao-repository';
+import { SqliteEntregavelDemandaRepository } from '@/infrastructure/db/repositories/sqlite-entregavel-demanda-repository';
 
 import { IDemandRepository } from '@/core/domain/repositories/demand-repository.interface';
 import { IAuditRepository } from '@/core/domain/repositories/audit-repository.interface';
@@ -22,7 +24,10 @@ import { IProblemasQualidadeRepository } from '@/core/domain/repositories/proble
 import { IDatasetAutorizadoRepository } from '@/core/domain/repositories/dataset-autorizado-repository.interface';
 import { IReceitaPreparacaoRepository } from '@/core/domain/repositories/receita-preparacao-repository.interface';
 import { IModeloAnaliticoRepository } from '@/core/domain/repositories/modelo-analitico-repository.interface';
+import { IValidacaoConciliacaoRepository } from '@/core/domain/repositories/validacao-conciliacao-repository.interface';
+import { IEntregavelDemandaRepository } from '@/core/domain/repositories/entregavel-demanda-repository.interface';
 import { ModelingRulesEvaluator } from '@/core/domain/rules/modeling-rules-evaluator';
+import { ValidationRulesEvaluator } from '@/core/domain/rules/validation-rules-evaluator';
 
 import { 
   TransitionDemandStateUseCase,
@@ -57,6 +62,8 @@ export interface WorkflowActionDeps {
   datasetAutorizadoRepo?: IDatasetAutorizadoRepository;
   receitaRepo?: IReceitaPreparacaoRepository;
   modeloRepo?: IModeloAnaliticoRepository;
+  validacaoRepo?: IValidacaoConciliacaoRepository;
+  entregavelRepo?: IEntregavelDemandaRepository;
 }
 
 const defaultDemandRepo = new SqliteDemandRepository();
@@ -67,6 +74,8 @@ const defaultProblemasRepo = new SqliteProblemasQualidadeRepository();
 const defaultDatasetAutorizadoRepo = new SqliteDatasetAutorizadoRepository();
 const defaultReceitaRepo = new SqliteReceitaPreparacaoRepository();
 const defaultModeloRepo = new SqliteModeloAnaliticoRepository();
+const defaultValidacaoRepo = new SqliteValidacaoConciliacaoRepository();
+const defaultEntregavelRepo = new SqliteEntregavelDemandaRepository();
 
 function resolveWorkflowDeps(customDeps?: Partial<WorkflowActionDeps>): WorkflowActionDeps {
   return {
@@ -78,6 +87,8 @@ function resolveWorkflowDeps(customDeps?: Partial<WorkflowActionDeps>): Workflow
     datasetAutorizadoRepo: customDeps ? customDeps.datasetAutorizadoRepo : defaultDatasetAutorizadoRepo,
     receitaRepo: customDeps ? customDeps.receitaRepo : defaultReceitaRepo,
     modeloRepo: customDeps ? customDeps.modeloRepo : defaultModeloRepo,
+    validacaoRepo: customDeps ? customDeps.validacaoRepo : defaultValidacaoRepo,
+    entregavelRepo: customDeps ? customDeps.entregavelRepo : defaultEntregavelRepo,
   };
 }
 
@@ -89,6 +100,126 @@ function revalidateAllPaths(demandaId: string, projetoId?: string) {
   if (projetoId) {
     revalidatePath(`/projects/${projetoId}`);
   }
+}
+
+async function buildFactualTransitionContext(
+  demandaId: string,
+  origem: EstadoDemanda,
+  destino: EstadoDemanda,
+  deps: WorkflowActionDeps,
+  avaliarQualityGateUseCase: AvaliarQualityGateUseCase
+): Promise<any> {
+  const contextoExtra: any = {};
+
+  // 1. Validação da etapa 1 para etapa 2: exige verificação de ativos de dados cadastrados
+  if (destino === EstadoDemanda.EM_QUALIDADE_E_PREPARACAO) {
+    const assets = await deps.ativoDadosRepo.findByDemandId(demandaId);
+    contextoExtra.totalAtivosDados = assets.length;
+  }
+
+  // 2. Regra de Governança 3.4C.1 / 3.4C.2 / 3.5C:
+  // Transição da etapa 2 (Em Qualidade e Preparação) para etapa 3 (Em Modelagem e Análise)
+  // exige avaliação factual do Quality Gate e de Dataset Autorizado no servidor. Proibido confiar em dados do cliente.
+  if (
+    origem === EstadoDemanda.EM_QUALIDADE_E_PREPARACAO &&
+    destino === EstadoDemanda.EM_MODELAGEM_E_ANALISE
+  ) {
+    const qualityGateResult = await avaliarQualityGateUseCase.execute({ demandaId });
+    contextoExtra.qualityGate = qualityGateResult;
+
+    if (deps.datasetAutorizadoRepo) {
+      const datasetVigente = await deps.datasetAutorizadoRepo.findVigenteByDemandId(demandaId);
+      if (datasetVigente) {
+        const ativoAutorizado = await deps.ativoDadosRepo.findById(datasetVigente.ativo_dados_id);
+        let receitaConcluida: any = null;
+        if (datasetVigente.receita_preparacao_id && deps.receitaRepo) {
+          receitaConcluida = await deps.receitaRepo.findById(datasetVigente.receita_preparacao_id);
+        }
+        const problemasDemanda = await deps.problemasRepo.findByDemandId(demandaId);
+        const problemasPendentesDeTratamento = problemasDemanda.filter(
+          (p) =>
+            p.acao_deliberada === 'TRATAR_NO_PIPELINE' &&
+            p.status !== 'TRATADO' &&
+            p.status !== 'ACEITO_COMO_RESTRICAO'
+        ).length;
+
+        contextoExtra.datasetAutorizado = datasetVigente;
+        contextoExtra.ativoAutorizado = ativoAutorizado;
+        contextoExtra.receitaPreparacao = receitaConcluida;
+        contextoExtra.problemasPendentesDeTratamento = problemasPendentesDeTratamento;
+      }
+    }
+  }
+
+  // 3. Regra de Governança 3.6C:
+  // Transição da etapa 3 (Em Modelagem e Análise) para etapa 4 (Em Validação)
+  // exige verificação factual de Modelo Analítico Homologado no servidor.
+  if (
+    origem === EstadoDemanda.EM_MODELAGEM_E_ANALISE &&
+    destino === EstadoDemanda.EM_VALIDACAO
+  ) {
+    if (deps.modeloRepo) {
+      const modeloHomologado = await deps.modeloRepo.findHomologadoByDemandaId(demandaId);
+      if (modeloHomologado) {
+        const modeloCompleto = await deps.modeloRepo.findCompletoById(modeloHomologado.id);
+        let temAlteracaoPosterior = false;
+        let totalBloqueios = 0;
+        if (modeloCompleto && modeloCompleto.homologado_em) {
+          const tsHomologado = new Date(modeloCompleto.homologado_em).getTime();
+          for (const ent of modeloCompleto.entidades) {
+            if (new Date(ent.atualizado_em).getTime() > tsHomologado) temAlteracaoPosterior = true;
+            for (const a of ent.atributos) {
+              if (new Date(a.atualizado_em).getTime() > tsHomologado) temAlteracaoPosterior = true;
+            }
+          }
+          for (const r of modeloCompleto.relacionamentos) {
+            if (new Date(r.atualizado_em).getTime() > tsHomologado) temAlteracaoPosterior = true;
+          }
+          for (const m of modeloCompleto.metricas) {
+            if (new Date(m.atualizado_em).getTime() > tsHomologado) temAlteracaoPosterior = true;
+          }
+
+          const dataset = deps.datasetAutorizadoRepo
+            ? await deps.datasetAutorizadoRepo.findById(modeloCompleto.dataset_autorizado_id)
+            : null;
+          const conformidade = ModelingRulesEvaluator.avaliar(modeloCompleto, dataset);
+          totalBloqueios = conformidade.total_bloqueios;
+        }
+
+        contextoExtra.modeloHomologado = {
+          id: modeloHomologado.id,
+          demanda_id: modeloHomologado.demanda_id,
+          dataset_autorizado_id: modeloHomologado.dataset_autorizado_id,
+          status: modeloHomologado.status,
+          homologado_em: modeloHomologado.homologado_em,
+          revogado_em: modeloHomologado.revogado_em,
+          temAlteracaoPosterior,
+          totalBloqueios,
+        };
+      } else {
+        contextoExtra.modeloHomologado = null;
+      }
+    }
+  }
+
+  // 4. Regra de Governança 3.7A:
+  // Transições para PRONTA_PARA_ENTREGA e CONCLUIDA
+  // Consulta factual e direta aos dados persistidos em SQLite (validações e entregáveis).
+  // Proibido confiar em payload do cliente.
+  if (
+    destino === EstadoDemanda.PRONTA_PARA_ENTREGA ||
+    destino === EstadoDemanda.CONCLUIDA
+  ) {
+    const validacoes = deps.validacaoRepo ? await deps.validacaoRepo.findByDemandId(demandaId) : [];
+    const entregaveis = deps.entregavelRepo ? await deps.entregavelRepo.findByDemandId(demandaId) : [];
+    const avaliacaoVal = ValidationRulesEvaluator.avaliar(validacoes, entregaveis);
+
+    contextoExtra.validacoesContexto = validacoes;
+    contextoExtra.entregaveisContexto = entregaveis;
+    contextoExtra.avaliacaoValidacao = avaliacaoVal;
+  }
+
+  return contextoExtra;
 }
 
 export async function advanceDemandAction(
@@ -115,121 +246,13 @@ export async function advanceDemandAction(
       return { success: false, error: 'Não há próximo estado sequencial disponível a partir do estado atual.' };
     }
 
-    let contextoExtra: any = undefined;
-
-    // Regra de Governança 3.4C.1 / 3.4C.2 / 3.5C:
-    // Transição da etapa 2 (Em Qualidade e Preparação) para etapa 3 (Em Modelagem e Análise)
-    // exige avaliação factual do Quality Gate e de Dataset Autorizado no servidor. Proibido confiar em dados do cliente.
-    if (
-      demand.estado === EstadoDemanda.EM_QUALIDADE_E_PREPARACAO &&
-      proximoEstado === EstadoDemanda.EM_MODELAGEM_E_ANALISE
-    ) {
-      const qualityGateResult = await avaliarQualityGateUseCase.execute({ demandaId });
-
-      let datasetVigente: any = undefined;
-      let ativoAutorizado: any = null;
-      let receitaConcluida: any = null;
-      let problemasPendentesDeTratamento: number | undefined = undefined;
-
-      if (deps.datasetAutorizadoRepo) {
-        datasetVigente = await deps.datasetAutorizadoRepo.findVigenteByDemandId(demandaId);
-        if (datasetVigente) {
-          ativoAutorizado = await deps.ativoDadosRepo.findById(datasetVigente.ativo_dados_id);
-          if (datasetVigente.receita_preparacao_id && deps.receitaRepo) {
-            receitaConcluida = await deps.receitaRepo.findById(datasetVigente.receita_preparacao_id);
-          }
-          const problemasDemanda = await deps.problemasRepo.findByDemandId(demandaId);
-          problemasPendentesDeTratamento = problemasDemanda.filter(
-            (p) =>
-              p.acao_deliberada === 'TRATAR_NO_PIPELINE' &&
-              p.status !== 'TRATADO' &&
-              p.status !== 'ACEITO_COMO_RESTRICAO'
-          ).length;
-
-          contextoExtra = {
-            ...contextoExtra,
-            qualityGate: qualityGateResult,
-            datasetAutorizado: datasetVigente,
-            ativoAutorizado,
-            receitaPreparacao: receitaConcluida,
-            problemasPendentesDeTratamento,
-          };
-        } else {
-          contextoExtra = {
-            ...contextoExtra,
-            qualityGate: qualityGateResult,
-          };
-        }
-      } else {
-        contextoExtra = {
-          ...contextoExtra,
-          qualityGate: qualityGateResult,
-        };
-      }
-    }
-
-    // Validação da etapa 1 para etapa 2: exige verificação de ativos de dados cadastrados
-    if (proximoEstado === EstadoDemanda.EM_QUALIDADE_E_PREPARACAO) {
-      const assets = await deps.ativoDadosRepo.findByDemandId(demandaId);
-      contextoExtra = { ...contextoExtra, totalAtivosDados: assets.length };
-    }
-
-    // Regra de Governança 3.6C:
-    // Transição da etapa 3 (Em Modelagem e Análise) para etapa 4 (Em Validação)
-    // exige verificação factual de Modelo Analítico Homologado no servidor.
-    if (
-      demand.estado === EstadoDemanda.EM_MODELAGEM_E_ANALISE &&
-      proximoEstado === EstadoDemanda.EM_VALIDACAO
-    ) {
-      if (deps.modeloRepo) {
-        const modeloHomologado = await deps.modeloRepo.findHomologadoByDemandaId(demandaId);
-        if (modeloHomologado) {
-          const modeloCompleto = await deps.modeloRepo.findCompletoById(modeloHomologado.id);
-          let temAlteracaoPosterior = false;
-          let totalBloqueios = 0;
-          if (modeloCompleto && modeloCompleto.homologado_em) {
-            const tsHomologado = new Date(modeloCompleto.homologado_em).getTime();
-            for (const ent of modeloCompleto.entidades) {
-              if (new Date(ent.atualizado_em).getTime() > tsHomologado) temAlteracaoPosterior = true;
-              for (const a of ent.atributos) {
-                if (new Date(a.atualizado_em).getTime() > tsHomologado) temAlteracaoPosterior = true;
-              }
-            }
-            for (const r of modeloCompleto.relacionamentos) {
-              if (new Date(r.atualizado_em).getTime() > tsHomologado) temAlteracaoPosterior = true;
-            }
-            for (const m of modeloCompleto.metricas) {
-              if (new Date(m.atualizado_em).getTime() > tsHomologado) temAlteracaoPosterior = true;
-            }
-
-            const dataset = deps.datasetAutorizadoRepo
-              ? await deps.datasetAutorizadoRepo.findById(modeloCompleto.dataset_autorizado_id)
-              : null;
-            const conformidade = ModelingRulesEvaluator.avaliar(modeloCompleto, dataset);
-            totalBloqueios = conformidade.total_bloqueios;
-          }
-
-          contextoExtra = {
-            ...contextoExtra,
-            modeloHomologado: {
-              id: modeloHomologado.id,
-              demanda_id: modeloHomologado.demanda_id,
-              dataset_autorizado_id: modeloHomologado.dataset_autorizado_id,
-              status: modeloHomologado.status,
-              homologado_em: modeloHomologado.homologado_em,
-              revogado_em: modeloHomologado.revogado_em,
-              temAlteracaoPosterior,
-              totalBloqueios,
-            },
-          };
-        } else {
-          contextoExtra = {
-            ...contextoExtra,
-            modeloHomologado: null,
-          };
-        }
-      }
-    }
+    const contextoExtra = await buildFactualTransitionContext(
+      demandaId,
+      demand.estado as EstadoDemanda,
+      proximoEstado,
+      deps,
+      avaliarQualityGateUseCase
+    );
 
     const updated = await transitionUseCase.execute({
       demandaId,
@@ -268,61 +291,13 @@ export async function transitionDemandAction(
       return { success: false, error: 'Demanda não encontrada.' };
     }
 
-    let contextoExtra: any = undefined;
-
-    // Avaliação factual no servidor do Quality Gate e Governança 3.5C na transição para Modelagem
-    if (
-      demand.estado === EstadoDemanda.EM_QUALIDADE_E_PREPARACAO &&
-      parsed.novoEstado === EstadoDemanda.EM_MODELAGEM_E_ANALISE
-    ) {
-      const qualityGateResult = await avaliarQualityGateUseCase.execute({ demandaId: parsed.demandaId });
-
-      let datasetVigente: any = undefined;
-      let ativoAutorizado: any = null;
-      let receitaConcluida: any = null;
-      let problemasPendentesDeTratamento: number | undefined = undefined;
-
-      if (deps.datasetAutorizadoRepo) {
-        datasetVigente = await deps.datasetAutorizadoRepo.findVigenteByDemandId(parsed.demandaId);
-        if (datasetVigente) {
-          ativoAutorizado = await deps.ativoDadosRepo.findById(datasetVigente.ativo_dados_id);
-          if (datasetVigente.receita_preparacao_id && deps.receitaRepo) {
-            receitaConcluida = await deps.receitaRepo.findById(datasetVigente.receita_preparacao_id);
-          }
-          const problemasDemanda = await deps.problemasRepo.findByDemandId(parsed.demandaId);
-          problemasPendentesDeTratamento = problemasDemanda.filter(
-            (p) =>
-              p.acao_deliberada === 'TRATAR_NO_PIPELINE' &&
-              p.status !== 'TRATADO' &&
-              p.status !== 'ACEITO_COMO_RESTRICAO'
-          ).length;
-
-          contextoExtra = {
-            ...contextoExtra,
-            qualityGate: qualityGateResult,
-            datasetAutorizado: datasetVigente,
-            ativoAutorizado,
-            receitaPreparacao: receitaConcluida,
-            problemasPendentesDeTratamento,
-          };
-        } else {
-          contextoExtra = {
-            ...contextoExtra,
-            qualityGate: qualityGateResult,
-          };
-        }
-      } else {
-        contextoExtra = {
-          ...contextoExtra,
-          qualityGate: qualityGateResult,
-        };
-      }
-    }
-
-    if (parsed.novoEstado === EstadoDemanda.EM_QUALIDADE_E_PREPARACAO) {
-      const assets = await deps.ativoDadosRepo.findByDemandId(parsed.demandaId);
-      contextoExtra = { ...contextoExtra, totalAtivosDados: assets.length };
-    }
+    const contextoExtra = await buildFactualTransitionContext(
+      parsed.demandaId,
+      demand.estado as EstadoDemanda,
+      parsed.novoEstado as EstadoDemanda,
+      deps,
+      avaliarQualityGateUseCase
+    );
 
     const updated = await transitionUseCase.execute({
       demandaId: parsed.demandaId,

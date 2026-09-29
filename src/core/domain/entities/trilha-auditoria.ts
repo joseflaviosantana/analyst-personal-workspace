@@ -8,7 +8,12 @@ export type TipoEventoAuditoria =
   | 'TRANSICAO_ESTADO' 
   | 'DECISAO_HUMANA' 
   | 'SUGESTAO_IA' 
-  | 'RECONCILIACAO';
+  | 'RECONCILIACAO'
+  | 'VALIDACAO_REGISTRADA'
+  | 'VALIDACAO_RETESTADA'
+  | 'ENTREGAVEL_REGISTRADO'
+  | 'ENTREGA_ACEITA'
+  | 'ENTREGA_REJEITADA';
 
 export type AutorTipoAuditoria = 'HUMANO' | 'IA';
 

@@ -7,6 +7,9 @@ import {
 } from '../enums/estado-demanda';
 
 import { ResultadoQualityGate } from './quality-gate';
+import { ValidacaoConciliacao } from '../entities/validacao-conciliacao';
+import { EntregavelDemanda } from '../entities/entregavel-demanda';
+import { ValidationRulesEvaluator, ResultadoAvaliacaoValidacao } from './validation-rules-evaluator';
 
 export class WorkflowTransitionError extends Error {
   constructor(message: string) {
@@ -51,6 +54,10 @@ export interface ContextoTransicao {
     temAlteracaoPosterior?: boolean;
     totalBloqueios?: number;
   } | null;
+  // Governança 3.7A (Validação Numérica, Entregáveis e Aceite Formal)
+  validacoesContexto?: ValidacaoConciliacao[];
+  entregaveisContexto?: EntregavelDemanda[];
+  avaliacaoValidacao?: ResultadoAvaliacaoValidacao;
 }
 
 export interface ResultadoValidacaoTransicao {
@@ -304,8 +311,25 @@ export class WorkflowEngine {
       }
     }
 
+    // 9. Governança 3.7A: Validação Numérica, Entregáveis Profissionais e Aceite Formal
+    let avaliacaoVal = contexto?.avaliacaoValidacao;
+    if (!avaliacaoVal && (contexto?.validacoesContexto !== undefined || contexto?.entregaveisContexto !== undefined)) {
+      avaliacaoVal = ValidationRulesEvaluator.avaliar(
+        contexto.validacoesContexto ?? [],
+        contexto.entregaveisContexto ?? []
+      );
+    }
+
     if (destino === EstadoDemanda.PRONTA_PARA_ENTREGA) {
-      if (contexto?.validacoesPendentes !== undefined && contexto.validacoesPendentes > 0) {
+      if (avaliacaoVal) {
+        if (!avaliacaoVal.pronto_para_entrega) {
+          return {
+            valida: false,
+            mensagem: avaliacaoVal.bloqueios_entrega[0] ?? 'Não é permitido avançar para Pronta para Entrega com bloqueios de validação ou entregáveis.',
+          };
+        }
+      } else if (contexto?.validacoesPendentes !== undefined && contexto.validacoesPendentes > 0) {
+        // Retrocompatibilidade transitória para suites legadas
         return {
           valida: false,
           mensagem: 'Não é permitido avançar para Pronta para Entrega com validações pendentes ou divergentes.',
@@ -314,7 +338,15 @@ export class WorkflowEngine {
     }
 
     if (destino === EstadoDemanda.CONCLUIDA) {
-      if (contexto?.entregaveisHomologados === false) {
+      if (avaliacaoVal) {
+        if (!avaliacaoVal.pronto_para_conclusao) {
+          return {
+            valida: false,
+            mensagem: avaliacaoVal.bloqueios_conclusao[0] ?? 'Não é permitido avançar para Concluída sem que todos os entregáveis obrigatórios possuam aceite formal válido.',
+          };
+        }
+      } else if (contexto?.entregaveisHomologados === false) {
+        // Retrocompatibilidade transitória para suites legadas
         return {
           valida: false,
           mensagem: 'Não é permitido avançar para Concluída sem que o pacote de entrega esteja registrado e homologado.',

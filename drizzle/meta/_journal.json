@@ -64,6 +64,13 @@
       "when": 1790632197578,
       "tag": "0008_certain_kabuki",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1790689689283,
+      "tag": "0009_right_red_skull",
+      "breakpoints": true
     }
   ]
 }
