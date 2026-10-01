@@ -67,6 +67,18 @@ export function isEstadoTerminal(estado: string | EstadoDemanda): boolean {
 }
 
 /**
+ * Verifica se a demanda está em modo estritamente somente-leitura (CONCLUIDA, CANCELADA ou SUSPENSA)
+ */
+export function isEstadoReadOnly(estado: string | EstadoDemanda): boolean {
+  const normalizado = normalizarEstadoDemanda(estado);
+  return (
+    normalizado === EstadoDemanda.CONCLUIDA ||
+    normalizado === EstadoDemanda.CANCELADA ||
+    normalizado === EstadoDemanda.SUSPENSA
+  );
+}
+
+/**
  * Rótulos oficiais em português conforme documentação normativa
  */
 export const ROTULOS_ESTADO_DEMANDA: Record<EstadoDemanda, string> = {

@@ -9,6 +9,13 @@ export interface Demanda {
   objetivo_inicial: string | null;
   prazo_esperado: string | null;
   restricoes_declaradas: string | null;
+  periodo_analise?: string | null;
+  granularidade?: string | null;
+  formato_entrega?: string | null;
+  requisitos_homologados_em?: string | null;
+  requisitos_homologados_por?: string | null;
+  requisitos_justificativa_homologacao?: string | null;
+  requisitos_ressalvas?: string | null;
   estado: EstadoDemanda;
   estado_anterior?: EstadoDemanda | string | null;
   criado_em: string;

@@ -6,6 +6,7 @@
  */
 
 export const TipoEvidenciaAnalitica = {
+  REQUISITOS: 'REQUISITOS',
   DADOS: 'DADOS',
   QUALIDADE: 'QUALIDADE',
   PREPARACAO: 'PREPARACAO',
@@ -21,6 +22,7 @@ export type TipoEvidenciaAnalitica =
   (typeof TipoEvidenciaAnalitica)[keyof typeof TipoEvidenciaAnalitica];
 
 export const ROTULOS_TIPO_EVIDENCIA: Record<TipoEvidenciaAnalitica, string> = {
+  [TipoEvidenciaAnalitica.REQUISITOS]: 'Requisitos & Clarificação',
   [TipoEvidenciaAnalitica.DADOS]: 'Ativos de Dados & Ingestão',
   [TipoEvidenciaAnalitica.QUALIDADE]: 'Diagnóstico de Qualidade',
   [TipoEvidenciaAnalitica.PREPARACAO]: 'Preparação & Transformação',

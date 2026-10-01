@@ -55,6 +55,13 @@ export const demandas = sqliteTable('demandas', {
   objetivo_inicial: text('objetivo_inicial'),
   prazo_esperado: text('prazo_esperado'),
   restricoes_declaradas: text('restricoes_declaradas'),
+  periodo_analise: text('periodo_analise'),
+  granularidade: text('granularidade'),
+  formato_entrega: text('formato_entrega'),
+  requisitos_homologados_em: text('requisitos_homologados_em'),
+  requisitos_homologados_por: text('requisitos_homologados_por'),
+  requisitos_justificativa_homologacao: text('requisitos_justificativa_homologacao'),
+  requisitos_ressalvas: text('requisitos_ressalvas'),
   estado: text('estado').notNull().default('NOVA'),
   estado_anterior: text('estado_anterior'),
   criado_em: text('criado_em').notNull(),
@@ -758,6 +765,66 @@ export const eventosAnaliticosLog = sqliteTable(
   })
 );
 
+/**
+ * Requisitos Analíticos da Demanda (V1 — Subunidade 3.8 / FSD CF-03 e v1-domain-model.md Seção 3.4)
+ * Itens atômicos de requisitos (métricas/KPIs, dimensões/filtros, formatos de entrega, regras de negócio e conformidade).
+ * Cardinalidade: Demanda 1 → N Requisitos.
+ */
+export const requisitosDemanda = sqliteTable(
+  'requisitos_demanda',
+  {
+    id: text('id').primaryKey(),
+    demanda_id: text('demanda_id')
+      .notNull()
+      .references(() => demandas.id, { onDelete: 'cascade' }),
+    titulo: text('titulo').notNull(),
+    descricao: text('descricao'),
+    categoria: text('categoria').notNull(),
+    prioridade: text('prioridade').notNull().default('OBRIGATORIO'),
+    status: text('status').notNull().default('IDENTIFICADO'),
+    origem: text('origem').notNull().default('MANUAL'),
+    criado_em: text('criado_em').notNull(),
+    atualizado_em: text('atualizado_em').notNull(),
+  },
+  (table) => ({
+    demandaIdIdx: index('idx_requisitos_demanda_id').on(table.demanda_id),
+    statusIdx: index('idx_requisitos_status').on(table.status),
+  })
+);
+
+/**
+ * Perguntas de Clarificação ao Contratante (V1 — Subunidade 3.8 / FSD CF-05 e v1-domain-model.md Seção 3.5)
+ * Registra dúvidas, perguntas, respostas recebidas e impacto em escopo sem comunicação externa autônoma.
+ * Cardinalidade: Demanda 1 → N Perguntas.
+ */
+export const perguntasClarificacao = sqliteTable(
+  'perguntas_clarificacao',
+  {
+    id: text('id').primaryKey(),
+    demanda_id: text('demanda_id')
+      .notNull()
+      .references(() => demandas.id, { onDelete: 'cascade' }),
+    requisito_id: text('requisito_id')
+      .references(() => requisitosDemanda.id, { onDelete: 'set null' }),
+    pergunta: text('pergunta').notNull(),
+    motivacao: text('motivacao'),
+    bloqueante: integer('bloqueante', { mode: 'boolean' }).notNull().default(false),
+    status: text('status').notNull().default('RASCUNHO'),
+    enviada_em: text('enviada_em'),
+    resposta: text('resposta'),
+    respondido_por: text('respondido_por'),
+    respondida_em: text('respondida_em'),
+    impacto_decisao: text('impacto_decisao'),
+    criado_em: text('criado_em').notNull(),
+    atualizado_em: text('atualizado_em').notNull(),
+  },
+  (table) => ({
+    demandaIdIdx: index('idx_perguntas_demanda_id').on(table.demanda_id),
+    statusIdx: index('idx_perguntas_status').on(table.status),
+    bloqueanteIdx: index('idx_perguntas_bloqueante').on(table.bloqueante),
+  })
+);
+
 
 /**
  * Relacionamentos declarativos Drizzle ORM
@@ -784,6 +851,8 @@ export const demandasRelations = relations(demandas, ({ one, many }) => ({
   validacoesConciliacao: many(validacoesConciliacao),
   entregaveisDemanda: many(entregaveisDemanda),
   modelosPowerBi: many(modelosPowerBi),
+  requisitos: many(requisitosDemanda),
+  perguntas: many(perguntasClarificacao),
   evidencias: many(evidenciasAnaliticas),
   eventosLog: many(eventosAnaliticosLog),
 }));
@@ -1089,5 +1158,24 @@ export const eventosAnaliticosLogRelations = relations(eventosAnaliticosLog, ({ 
   evidenciaGerada: one(evidenciasAnaliticas, {
     fields: [eventosAnaliticosLog.evidencia_gerada_id],
     references: [evidenciasAnaliticas.id],
+  }),
+}));
+
+export const requisitosDemandaRelations = relations(requisitosDemanda, ({ one, many }) => ({
+  demanda: one(demandas, {
+    fields: [requisitosDemanda.demanda_id],
+    references: [demandas.id],
+  }),
+  perguntas: many(perguntasClarificacao),
+}));
+
+export const perguntasClarificacaoRelations = relations(perguntasClarificacao, ({ one }) => ({
+  demanda: one(demandas, {
+    fields: [perguntasClarificacao.demanda_id],
+    references: [demandas.id],
+  }),
+  requisito: one(requisitosDemanda, {
+    fields: [perguntasClarificacao.requisito_id],
+    references: [requisitosDemanda.id],
   }),
 }));

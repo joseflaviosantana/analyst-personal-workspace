@@ -5,6 +5,7 @@
  */
 
 export const EtapaOrigemEvidencia = {
+  REQUISITOS: 'REQUISITOS',
   DADOS: 'DADOS',
   QUALIDADE: 'QUALIDADE',
   PREPARACAO: 'PREPARACAO',
@@ -20,6 +21,7 @@ export type EtapaOrigemEvidencia =
   (typeof EtapaOrigemEvidencia)[keyof typeof EtapaOrigemEvidencia];
 
 export const ROTULOS_ETAPA_ORIGEM_EVIDENCIA: Record<EtapaOrigemEvidencia, string> = {
+  [EtapaOrigemEvidencia.REQUISITOS]: 'Aba 2 — Requisitos & Clarificação',
   [EtapaOrigemEvidencia.DADOS]: 'Aba 3 — Ativos de Dados',
   [EtapaOrigemEvidencia.QUALIDADE]: 'Aba 4 — Qualidade',
   [EtapaOrigemEvidencia.PREPARACAO]: 'Aba 5 — Preparação',

@@ -39,6 +39,13 @@ export class SqliteDemandRepository implements IDemandRepository {
       objetivo_inicial: row.demanda.objetivo_inicial,
       prazo_esperado: row.demanda.prazo_esperado,
       restricoes_declaradas: row.demanda.restricoes_declaradas,
+      periodo_analise: row.demanda.periodo_analise,
+      granularidade: row.demanda.granularidade,
+      formato_entrega: row.demanda.formato_entrega,
+      requisitos_homologados_em: row.demanda.requisitos_homologados_em,
+      requisitos_homologados_por: row.demanda.requisitos_homologados_por,
+      requisitos_justificativa_homologacao: row.demanda.requisitos_justificativa_homologacao,
+      requisitos_ressalvas: row.demanda.requisitos_ressalvas,
       estado: normalizarEstadoDemanda(row.demanda.estado),
       estado_anterior: row.demanda.estado_anterior ? normalizarEstadoDemanda(row.demanda.estado_anterior) : null,
       criado_em: row.demanda.criado_em,
@@ -65,6 +72,13 @@ export class SqliteDemandRepository implements IDemandRepository {
       objetivo_inicial: r.objetivo_inicial,
       prazo_esperado: r.prazo_esperado,
       restricoes_declaradas: r.restricoes_declaradas,
+      periodo_analise: r.periodo_analise,
+      granularidade: r.granularidade,
+      formato_entrega: r.formato_entrega,
+      requisitos_homologados_em: r.requisitos_homologados_em,
+      requisitos_homologados_por: r.requisitos_homologados_por,
+      requisitos_justificativa_homologacao: r.requisitos_justificativa_homologacao,
+      requisitos_ressalvas: r.requisitos_ressalvas,
       estado: normalizarEstadoDemanda(r.estado),
       estado_anterior: r.estado_anterior ? normalizarEstadoDemanda(r.estado_anterior) : null,
       criado_em: r.criado_em,
@@ -93,6 +107,13 @@ export class SqliteDemandRepository implements IDemandRepository {
       objetivo_inicial: r.demanda.objetivo_inicial,
       prazo_esperado: r.demanda.prazo_esperado,
       restricoes_declaradas: r.demanda.restricoes_declaradas,
+      periodo_analise: r.demanda.periodo_analise,
+      granularidade: r.demanda.granularidade,
+      formato_entrega: r.demanda.formato_entrega,
+      requisitos_homologados_em: r.demanda.requisitos_homologados_em,
+      requisitos_homologados_por: r.demanda.requisitos_homologados_por,
+      requisitos_justificativa_homologacao: r.demanda.requisitos_justificativa_homologacao,
+      requisitos_ressalvas: r.demanda.requisitos_ressalvas,
       estado: normalizarEstadoDemanda(r.demanda.estado),
       estado_anterior: r.demanda.estado_anterior ? normalizarEstadoDemanda(r.demanda.estado_anterior) : null,
       criado_em: r.demanda.criado_em,
@@ -123,6 +144,13 @@ export class SqliteDemandRepository implements IDemandRepository {
       objetivo_inicial: r.demanda.objetivo_inicial,
       prazo_esperado: r.demanda.prazo_esperado,
       restricoes_declaradas: r.demanda.restricoes_declaradas,
+      periodo_analise: r.demanda.periodo_analise,
+      granularidade: r.demanda.granularidade,
+      formato_entrega: r.demanda.formato_entrega,
+      requisitos_homologados_em: r.demanda.requisitos_homologados_em,
+      requisitos_homologados_por: r.demanda.requisitos_homologados_por,
+      requisitos_justificativa_homologacao: r.demanda.requisitos_justificativa_homologacao,
+      requisitos_ressalvas: r.demanda.requisitos_ressalvas,
       estado: normalizarEstadoDemanda(r.demanda.estado),
       estado_anterior: r.demanda.estado_anterior ? normalizarEstadoDemanda(r.demanda.estado_anterior) : null,
       criado_em: r.demanda.criado_em,
@@ -136,8 +164,11 @@ export class SqliteDemandRepository implements IDemandRepository {
     const existing = await this.findById(id);
     if (!existing) return null;
 
+    // Blindagem de imutabilidade: solicitacao_bruta não pode ser alterada após a criação da demanda
+    const { solicitacao_bruta: _omit, ...safeData } = data as any;
+
     const updatedData = {
-      ...data,
+      ...safeData,
       atualizado_em: new Date().toISOString(),
     };
 

@@ -16,9 +16,11 @@ import { ModelagemStrategy } from './default-strategies/modelagem-strategy';
 import { DashboardStrategy } from './default-strategies/dashboard-strategy';
 import { ValidacaoStrategy } from './default-strategies/validacao-strategy';
 import { EntregaStrategy } from './default-strategies/entrega-strategy';
+import { RequisitosStrategy } from './default-strategies/requisitos-strategy';
 
 export function criarEvidenceEventEnginePadrao(): EvidenceEventEngine {
   return new EvidenceEventEngine([
+    new RequisitosStrategy(),
     new QualidadeRegraStrategy(),
     new DecisaoMetodologicaStrategy(),
     new EventoTecnicoIgnoradoStrategy(),

@@ -43,6 +43,7 @@ import { formalizarEncerramentoDemandaAction } from '@/app/actions/deliverable-a
 
 import { AtivoDados } from '@/core/domain/entities/ativo-dados';
 import { TabDataAssets } from '@/components/demands/TabDataAssets';
+import { TabRequirements } from '@/components/demands/TabRequirements';
 import { TabQuality } from '@/components/demands/TabQuality';
 import { TabPreparation } from '@/components/demands/TabPreparation';
 import { TabModeling } from '@/components/demands/TabModeling';
@@ -136,7 +137,7 @@ export function DemandWorkspaceView({
 
   const tabs = [
     { id: 'overview', label: '1. Visão Geral', ready: true },
-    { id: 'requirements', label: '2. Requisitos', ready: false },
+    { id: 'requirements', label: '2. Requisitos', ready: true },
     { id: 'data', label: '3. Ativos de Dados', ready: true },
     { id: 'quality', label: '4. Qualidade', ready: true },
     { id: 'transformation', label: '5. Preparação', ready: true },
@@ -408,6 +409,8 @@ export function DemandWorkspaceView({
             </p>
           </Card>
         </div>
+      ) : activeTab === 'requirements' || activeTab === 'requisitos' ? (
+        <TabRequirements demand={demand} />
       ) : activeTab === 'data' ? (
         <TabDataAssets demand={demand} initialAssets={initialAssets} />
       ) : activeTab === 'quality' ? (

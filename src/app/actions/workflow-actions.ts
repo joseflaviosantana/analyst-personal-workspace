@@ -29,6 +29,11 @@ import { IEntregavelDemandaRepository } from '@/core/domain/repositories/entrega
 import { ModelingRulesEvaluator } from '@/core/domain/rules/modeling-rules-evaluator';
 import { ValidationRulesEvaluator } from '@/core/domain/rules/validation-rules-evaluator';
 import { FormalizarEncerramentoDemandaUseCase } from '@/core/use-cases/validation';
+import { SqliteRequisitoDemandaRepository } from '@/infrastructure/db/repositories/sqlite-requisito-repository';
+import { SqlitePerguntaClarificacaoRepository } from '@/infrastructure/db/repositories/sqlite-pergunta-clarificacao-repository';
+import { IRequisitoDemandaRepository } from '@/core/domain/repositories/requisito-demanda-repository.interface';
+import { IPerguntaClarificacaoRepository } from '@/core/domain/repositories/pergunta-clarificacao-repository.interface';
+import { AvaliarProntidaoRequisitosUseCase } from '@/core/use-cases/requirements/avaliar-prontidao-requisitos.use-case';
 import { SqliteEventoAnaliticoLogRepository } from '@/infrastructure/db/repositories/sqlite-evento-analitico-log-repository';
 import { SqliteEvidenciaAnaliticaRepository } from '@/infrastructure/db/repositories/sqlite-evidencia-analitica-repository';
 import {
@@ -72,6 +77,8 @@ export interface WorkflowActionDeps {
   modeloRepo?: IModeloAnaliticoRepository;
   validacaoRepo?: IValidacaoConciliacaoRepository;
   entregavelRepo?: IEntregavelDemandaRepository;
+  requisitoRepo?: IRequisitoDemandaRepository;
+  perguntaRepo?: IPerguntaClarificacaoRepository;
   processarEventoUseCase?: ProcessarEventoAnaliticoUseCase;
 }
 
@@ -85,6 +92,8 @@ const defaultReceitaRepo = new SqliteReceitaPreparacaoRepository();
 const defaultModeloRepo = new SqliteModeloAnaliticoRepository();
 const defaultValidacaoRepo = new SqliteValidacaoConciliacaoRepository();
 const defaultEntregavelRepo = new SqliteEntregavelDemandaRepository();
+const defaultRequisitoRepo = new SqliteRequisitoDemandaRepository();
+const defaultPerguntaRepo = new SqlitePerguntaClarificacaoRepository();
 
 function resolveWorkflowDeps(customDeps?: Partial<WorkflowActionDeps>): WorkflowActionDeps {
   return {
@@ -98,6 +107,8 @@ function resolveWorkflowDeps(customDeps?: Partial<WorkflowActionDeps>): Workflow
     modeloRepo: customDeps ? customDeps.modeloRepo : defaultModeloRepo,
     validacaoRepo: customDeps ? customDeps.validacaoRepo : defaultValidacaoRepo,
     entregavelRepo: customDeps ? customDeps.entregavelRepo : defaultEntregavelRepo,
+    requisitoRepo: customDeps ? customDeps.requisitoRepo : defaultRequisitoRepo,
+    perguntaRepo: customDeps ? customDeps.perguntaRepo : defaultPerguntaRepo,
     processarEventoUseCase: customDeps?.processarEventoUseCase,
   };
 }
@@ -135,6 +146,20 @@ async function buildFactualTransitionContext(
   avaliarQualityGateUseCase: AvaliarQualityGateUseCase
 ): Promise<any> {
   const contextoExtra: any = {};
+
+  // 0. Validação da etapa 1 (Em Clarificação) para etapa 2 (Dados Recebidos): Requisitos e Perguntas
+  if (
+    origem === EstadoDemanda.EM_CLARIFICACAO &&
+    destino === EstadoDemanda.DADOS_RECEBIDOS
+  ) {
+    const avaliarProntidaoUseCase = new AvaliarProntidaoRequisitosUseCase(
+      deps.demandRepo,
+      deps.requisitoRepo ?? defaultRequisitoRepo,
+      deps.perguntaRepo ?? defaultPerguntaRepo
+    );
+    const prontidao = await avaliarProntidaoUseCase.execute(demandaId);
+    contextoExtra.prontidaoRequisitos = prontidao;
+  }
 
   // 1. Validação da etapa 1 para etapa 2: exige verificação de ativos de dados cadastrados
   if (destino === EstadoDemanda.EM_QUALIDADE_E_PREPARACAO) {

@@ -3,6 +3,7 @@ import {
   ESTADOS_ORDENADOS_SEQUENCIAIS,
   ROTULOS_ESTADO_DEMANDA,
   isEstadoTerminal,
+  isEstadoReadOnly,
   normalizarEstadoDemanda,
 } from '../enums/estado-demanda';
 
@@ -58,6 +59,14 @@ export interface ContextoTransicao {
   validacoesContexto?: ValidacaoConciliacao[];
   entregaveisContexto?: EntregavelDemanda[];
   avaliacaoValidacao?: ResultadoAvaliacaoValidacao;
+  // Governança 3.8 (Requisitos e Perguntas de Clarificação)
+  prontidaoRequisitos?: {
+    bloqueado: boolean;
+    motivosBloqueio: string[];
+    perguntasBloqueantesPendentes: number;
+    exigeJustificativaRessalva: boolean;
+    isHomologado: boolean;
+  };
 }
 
 export interface ResultadoValidacaoTransicao {
@@ -201,7 +210,29 @@ export class WorkflowEngine {
       };
     }
 
-    // 7. Gates e Critérios de Qualidade da V1 (CF-22)
+    // 7. Gates e Critérios de Qualidade da V1 (CF-22 e Bloco 3.8)
+    if (origem === EstadoDemanda.EM_CLARIFICACAO && destino === EstadoDemanda.DADOS_RECEBIDOS) {
+      if (contexto?.prontidaoRequisitos) {
+        if (contexto.prontidaoRequisitos.bloqueado) {
+          return {
+            valida: false,
+            mensagem: `Transição bloqueada na etapa de Requisitos: ${contexto.prontidaoRequisitos.motivosBloqueio.join(' ')}`,
+          };
+        }
+
+        if (contexto.prontidaoRequisitos.exigeJustificativaRessalva) {
+          const just = contexto.justificativa?.trim() ?? '';
+          if (just.length < 15) {
+            return {
+              valida: false,
+              mensagem:
+                'O avanço para Dados Recebidos com ressalvas ou pendências exige justificativa formal com no mínimo 15 caracteres.',
+            };
+          }
+        }
+      }
+    }
+
     if (destino === EstadoDemanda.EM_QUALIDADE_E_PREPARACAO) {
       if (contexto?.totalAtivosDados !== undefined && contexto.totalAtivosDados === 0) {
         return {
@@ -388,6 +419,13 @@ export class WorkflowEngine {
    */
   static isEstadoTerminal(estado: EstadoDemanda | string): boolean {
     return isEstadoTerminal(estado);
+  }
+
+  /**
+   * Avalia se a demanda está em modo estritamente somente-leitura (Concluída, Cancelada ou Suspensa)
+   */
+  static isEstadoReadOnly(estado: EstadoDemanda | string): boolean {
+    return isEstadoReadOnly(estado);
   }
 
   /**
