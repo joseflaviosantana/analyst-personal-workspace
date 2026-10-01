@@ -265,6 +265,7 @@ O fluxo operacional detalhado organiza o trabalho profissional em 12 fases inter
   - **Geração de Estudo de Caso de Portfólio**: Derivação estruturada do projeto no formato:
     $$\text{Problema de Negócio} \longrightarrow \text{Processo Analítico} \longrightarrow \text{Desafios Superados} \longrightarrow \text{Resultados Obtidos}$$
 - **Salvaguarda Crítica de Sigilo**: É terminantemente proibido transferir nomes reais de clientes, valores corporativos sigilosos ou identificadores pessoais para materiais de portfólio. Todo case passa por higienização completa, generalização e anonimização com dados fictícios (*mock data*).
+- **Governança de Apresentação**: Aderência obrigatória às diretrizes estabelecidas na [Política de Apresentação Profissional](./professional-presentation-policy.md).
 
 ---
 
