@@ -13,6 +13,7 @@ import { QualidadeDiagnosticoStrategy } from './default-strategies/qualidade-dia
 import { QualidadeProblemaStrategy } from './default-strategies/qualidade-problema-strategy';
 import { PreparacaoStrategy } from './default-strategies/preparacao-strategy';
 import { ModelagemStrategy } from './default-strategies/modelagem-strategy';
+import { DashboardStrategy } from './default-strategies/dashboard-strategy';
 
 export function criarEvidenceEventEnginePadrao(): EvidenceEventEngine {
   return new EvidenceEventEngine([
@@ -24,5 +25,6 @@ export function criarEvidenceEventEnginePadrao(): EvidenceEventEngine {
     new QualidadeProblemaStrategy(),
     new PreparacaoStrategy(),
     new ModelagemStrategy(),
+    new DashboardStrategy(),
   ]);
 }
