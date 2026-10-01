@@ -44,6 +44,9 @@ import { TabDataAssets } from '@/components/demands/TabDataAssets';
 import { TabQuality } from '@/components/demands/TabQuality';
 import { TabPreparation } from '@/components/demands/TabPreparation';
 import { TabModeling } from '@/components/demands/TabModeling';
+import { TabDashboard } from '@/components/demands/TabDashboard';
+import { TabEvidence } from '@/components/demands/TabEvidence';
+import { TabValidation } from '@/components/demands/TabValidation';
 
 interface DemandWorkspaceViewProps {
   demand: DemandaComProjeto;
@@ -109,19 +112,19 @@ export function DemandWorkspaceView({
     { id: 'quality', label: '4. Qualidade', ready: true },
     { id: 'transformation', label: '5. Preparação', ready: true },
     { id: 'planning', label: '6. Modelagem', ready: true },
-    { id: 'powerbi', label: '7. Power BI & DAX', ready: false },
-    { id: 'findings', label: '8. Evidências', ready: false },
-    { id: 'validation', label: '9. Validação', ready: false },
+    { id: 'powerbi', label: '7. Power BI & DAX', ready: true },
+    { id: 'findings', label: '8. Evidências', ready: true },
+    { id: 'validation', label: '9. Validação', ready: true },
     { id: 'deliverables', label: '10. Entregáveis', ready: false },
     { id: 'dossier', label: '11. Dossiê & Portfólio', ready: false },
   ];
 
   return (
     <div className="space-y-6 max-w-6xl">
-      {/* Sticky Context Header do Workspace (UX Spec 4 / ADR-002) */}
+      {/* Context Header do Workspace (UX Spec 4 / ADR-002) */}
       <div
         data-testid="demand-sticky-header"
-        className="rounded-xl border border-slate-800 bg-slate-900/90 p-5 shadow-lg backdrop-blur-md sticky top-0 z-20"
+        className="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-lg"
       >
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
@@ -384,6 +387,12 @@ export function DemandWorkspaceView({
         <TabPreparation demand={demand} initialAssets={initialAssets} />
       ) : activeTab === 'planning' || activeTab === 'modeling' ? (
         <TabModeling demand={demand} initialAssets={initialAssets} />
+      ) : activeTab === 'powerbi' || activeTab === 'dashboard' ? (
+        <TabDashboard demand={demand} initialAssets={initialAssets} />
+      ) : activeTab === 'findings' || activeTab === 'evidencias' ? (
+        <TabEvidence demand={demand} initialAssets={initialAssets} />
+      ) : activeTab === 'validation' || activeTab === 'validacao' ? (
+        <TabValidation demand={demand} initialAssets={initialAssets} />
       ) : (
         /* Áreas Futuras da UX indicadas com honestidade técnica */
         <Card className="p-12 text-center" data-testid="tab-future-placeholder">
