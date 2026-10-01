@@ -9,3 +9,4 @@ export * from './registrar-aceite-entrega.use-case';
 export * from './remover-entregavel-demanda.use-case';
 export * from './listar-entregaveis-demanda.use-case';
 export * from './avaliar-prontidao-validacao.use-case';
+export * from './formalizar-encerramento-demanda.use-case';

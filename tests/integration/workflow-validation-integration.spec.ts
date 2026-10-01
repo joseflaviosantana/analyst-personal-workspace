@@ -16,6 +16,13 @@ import { SqliteReceitaPreparacaoRepository } from '@/infrastructure/db/repositor
 import { SqliteModeloAnaliticoRepository } from '@/infrastructure/db/repositories/sqlite-modelo-analitico-repository';
 import { SqliteValidacaoConciliacaoRepository } from '@/infrastructure/db/repositories/sqlite-validacao-conciliacao-repository';
 import { SqliteEntregavelDemandaRepository } from '@/infrastructure/db/repositories/sqlite-entregavel-demanda-repository';
+import { SqliteEventoAnaliticoLogRepository } from '@/infrastructure/db/repositories/sqlite-evento-analitico-log-repository';
+import { SqliteEvidenciaAnaliticaRepository } from '@/infrastructure/db/repositories/sqlite-evidencia-analitica-repository';
+import {
+  RegistrarEvidenciaUseCase,
+  ProcessarEventoAnaliticoUseCase,
+} from '@/core/use-cases/evidence';
+import { criarEvidenceEventEnginePadrao } from '@/core/domain/evidence-events';
 import { advanceDemandAction, WorkflowActionDeps } from '@/app/actions/workflow-actions';
 import { EstadoDemanda } from '@/core/domain/enums/estado-demanda';
 import { CamadaValidacao } from '@/core/domain/enums/camada-validacao';
@@ -35,6 +42,7 @@ describe('Integration Tests: Governança Factual de Validação e Conclusão no 
   let db: ReturnType<typeof drizzle<typeof schema>>;
 
   let deps: WorkflowActionDeps;
+  let eventoLogRepo: SqliteEventoAnaliticoLogRepository;
   const projetoId = 'prj_wf_val_1';
   const demandaId = 'dem_wf_val_1';
 
@@ -56,8 +64,19 @@ describe('Integration Tests: Governança Factual de Validação e Conclusão no 
     const migrationsFolder = path.join(process.cwd(), 'drizzle');
     migrate(db, { migrationsFolder });
 
+    const demandRepo = new SqliteDemandRepository(db);
+    eventoLogRepo = new SqliteEventoAnaliticoLogRepository(db);
+    const evidenciaRepo = new SqliteEvidenciaAnaliticaRepository(db);
+    const engine = criarEvidenceEventEnginePadrao();
+    const registrarEvidenciaUseCase = new RegistrarEvidenciaUseCase(evidenciaRepo, demandRepo);
+    const processarEventoUseCase = new ProcessarEventoAnaliticoUseCase(
+      engine,
+      eventoLogRepo,
+      registrarEvidenciaUseCase
+    );
+
     deps = {
-      demandRepo: new SqliteDemandRepository(db),
+      demandRepo,
       auditRepo: new SqliteAuditRepository(db),
       ativoDadosRepo: new SqliteAtivoDadosRepository(db),
       diagnosticosRepo: new SqliteDiagnosticosQualidadeRepository(db),
@@ -67,6 +86,7 @@ describe('Integration Tests: Governança Factual de Validação e Conclusão no 
       modeloRepo: new SqliteModeloAnaliticoRepository(db),
       validacaoRepo: new SqliteValidacaoConciliacaoRepository(db),
       entregavelRepo: new SqliteEntregavelDemandaRepository(db),
+      processarEventoUseCase,
     };
 
     const projectRepo = new SqliteProjectRepository(db);
@@ -268,5 +288,18 @@ describe('Integration Tests: Governança Factual de Validação e Conclusão no 
     const timeline = await deps.auditRepo.findByDemandaId(demandaId);
     expect(timeline.length).toBeGreaterThan(0);
     expect(timeline.some((t) => t.tipo_evento === 'TRANSICAO_ESTADO')).toBe(true);
+
+    // Verifica evento analítico emitido para o Evidence Event Engine
+    const logs = await eventoLogRepo.findByDemandaId(demandaId);
+    const logConclusao = logs.find((l) => l.tipo_evento === 'ENTREGA_ENCERRAMENTO_FORMALIZADO');
+    expect(logConclusao).toBeDefined();
+    expect(logConclusao?.id_evento).toContain(`evt_ent_concluida_${demandaId}_`);
+
+    // Idempotência: nova chamada com a demanda já CONCLUIDA não quebra nem duplica evento
+    const resIdempotente = await advanceDemandAction(demandaId, 'Tentativa redundante', deps);
+    expect(resIdempotente.success).toBe(true);
+    if (resIdempotente.success) {
+      expect(resIdempotente.data.estado).toBe(EstadoDemanda.CONCLUIDA);
+    }
   });
 });

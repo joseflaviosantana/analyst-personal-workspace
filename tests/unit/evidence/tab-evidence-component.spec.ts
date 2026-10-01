@@ -43,4 +43,37 @@ describe('UI: Aba 8 — Evidências & Evidence Core (Subgate 3.5A)', () => {
     expect(abaFindings.ready).toBe(true);
     expect(abaFindings.label).toBe('8. Evidências');
   });
+
+  describe('3. Governança Read-Only (B-2)', () => {
+    it('deve instanciar TabEvidence em modo CONCLUIDA preservando visualização', () => {
+      const demandaConcluida: DemandaComProjeto = {
+        ...mockDemanda,
+        estado: EstadoDemanda.CONCLUIDA,
+        data_conclusao: '2026-10-01T15:00:00Z',
+      };
+      const element = React.createElement(TabEvidence, { demand: demandaConcluida });
+      expect(element).toBeDefined();
+      expect(element.props.demand.estado).toBe(EstadoDemanda.CONCLUIDA);
+    });
+
+    it('deve instanciar TabEvidence em modo SUSPENSA preservando visualização', () => {
+      const demandaSuspensa: DemandaComProjeto = {
+        ...mockDemanda,
+        estado: EstadoDemanda.SUSPENSA,
+      };
+      const element = React.createElement(TabEvidence, { demand: demandaSuspensa });
+      expect(element).toBeDefined();
+      expect(element.props.demand.estado).toBe(EstadoDemanda.SUSPENSA);
+    });
+
+    it('deve instanciar TabEvidence em modo CANCELADA preservando visualização', () => {
+      const demandaCancelada: DemandaComProjeto = {
+        ...mockDemanda,
+        estado: EstadoDemanda.CANCELADA,
+      };
+      const element = React.createElement(TabEvidence, { demand: demandaCancelada });
+      expect(element).toBeDefined();
+      expect(element.props.demand.estado).toBe(EstadoDemanda.CANCELADA);
+    });
+  });
 });

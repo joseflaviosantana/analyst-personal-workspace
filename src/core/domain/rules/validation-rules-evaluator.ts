@@ -227,6 +227,15 @@ export class ValidationRulesEvaluator {
             });
             bloqueiosConclusao.push(msg);
           }
+        } else {
+          const msg = `O entregável obrigatório "${ent.titulo}" não possui aceite formal homologado.`;
+          diagnosticos.push({
+            codigo: 'V-04',
+            tipo: 'BLOQUEIO',
+            mensagem: msg,
+            item_afetado: ent.id,
+          });
+          bloqueiosConclusao.push(msg);
         }
       }
     }

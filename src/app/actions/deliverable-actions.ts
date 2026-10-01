@@ -26,6 +26,7 @@ import {
   RemoverEntregavelDemandaUseCase,
   ListarEntregaveisDemandaUseCase,
   RegistrarAceiteEntregaUseCase,
+  FormalizarEncerramentoDemandaUseCase,
 } from '@/core/use-cases/validation';
 
 import {
@@ -420,79 +421,25 @@ export async function formalizarEncerramentoDemandaAction(
   customDeps?: Partial<DeliverableActionDeps>
 ): Promise<DeliverableActionResult<{ id: string; estado: EstadoDemanda }>> {
   try {
-    const { demandRepo, entregavelRepo, validacaoRepo, auditRepo, processarEventoUseCase } = resolveDeliverableDeps(customDeps);
-    const demanda = await demandRepo.findById(demandaId);
-    if (!demanda) {
-      return { success: false, error: `Demanda com ID '${demandaId}' não encontrada.` };
-    }
+    const { demandRepo, entregavelRepo, validacaoRepo, auditRepo, processarEventoUseCase } =
+      resolveDeliverableDeps(customDeps);
 
-    const [validacoes, entregaveis] = await Promise.all([
-      validacaoRepo.findByDemandId(demandaId),
-      entregavelRepo.findByDemandId(demandaId),
-    ]);
+    const useCase = new FormalizarEncerramentoDemandaUseCase(
+      demandRepo,
+      entregavelRepo,
+      validacaoRepo,
+      auditRepo,
+      processarEventoUseCase
+    );
 
-    // Avaliação canônica de integridade
-    const avaliacao = ValidationRulesEvaluator.avaliar(validacoes, entregaveis);
-    WorkflowEngine.validarTransicao(demanda.estado, EstadoDemanda.CONCLUIDA, {
+    const atualizada = await useCase.execute({
+      demandaId,
       justificativa,
-      avaliacaoValidacao: avaliacao,
+      autorTipo: 'HUMANO',
     });
-
-    const now = new Date().toISOString();
-    const atualizada = await demandRepo.update(demandaId, {
-      estado: EstadoDemanda.CONCLUIDA,
-      estado_anterior: demanda.estado,
-      data_conclusao: now,
-    });
-
-    if (!atualizada) {
-      return { success: false, error: 'Falha ao atualizar estado da demanda no banco de dados.' };
-    }
-
-    // Registro na trilha de auditoria
-    await auditRepo.record({
-      demanda_id: demandaId,
-      entidade: 'demandas',
-      entidade_id: demandaId,
-      tipo_evento: 'TRANSICAO_ESTADO',
-      autor_tipo: 'HUMANO',
-      dados_anteriores: JSON.stringify({ estado: demanda.estado }),
-      dados_novos: JSON.stringify({ estado: EstadoDemanda.CONCLUIDA, data_conclusao: now }),
-      justificativa: justificativa || 'Encerramento formal soberano após aceite integral dos entregáveis.',
-      timestamp: now,
-    });
-
-    // Despacho determinístico para o Evidence Event Engine
-    try {
-      const timestampConclusao = atualizada.data_conclusao || now;
-      const aceitos = entregaveis.filter((e) => e.aceite_status === StatusAceiteEntrega.ACEITO);
-      const evento: EventoAnalitico = {
-        id_evento: `evt_ent_concluida_${demandaId}_${timestampConclusao}`,
-        demanda_id: demandaId,
-        projeto_id: demanda.projeto_id || null,
-        etapa_origem: EtapaOrigemEvidencia.ENTREGA,
-        categoria: 'ENTREGA',
-        tipo_evento: 'ENTREGA_ENCERRAMENTO_FORMALIZADO',
-        ocorrido_em: now,
-        executor: 'ANALISTA',
-        artefato_origem_tipo: 'DEMANDA',
-        artefato_origem_id: demandaId,
-        payload: {
-          demandaId,
-          demandaTitulo: demanda.titulo,
-          dataConclusao: now,
-          totalEntregaveisHomologados: aceitos.length,
-        },
-        versao_contrato: '1.0',
-      };
-
-      await processarEventoUseCase.execute(evento);
-    } catch (evtErr: unknown) {
-      console.warn('[EvidenceEventEngine] Falha ao despachar evento ENTREGA_ENCERRAMENTO_FORMALIZADO:', evtErr);
-    }
 
     revalidateAllPaths(demandaId);
-    return { success: true, data: { id: demandaId, estado: EstadoDemanda.CONCLUIDA } };
+    return { success: true, data: { id: atualizada.id, estado: atualizada.estado } };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Falha ao formalizar encerramento da demanda.';
     return { success: false, error: msg };

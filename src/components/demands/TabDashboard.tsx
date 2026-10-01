@@ -19,10 +19,15 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Loader2, AlertCircle, RefreshCw, ShieldAlert } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { DemandaComProjeto } from '@/core/domain/entities/demanda';
 import { AtivoDados } from '@/core/domain/entities/ativo-dados';
+import {
+  EstadoDemanda,
+  normalizarEstadoDemanda,
+  isEstadoTerminal,
+} from '@/core/domain/enums/estado-demanda';
 import {
   obterContextoDashboardAction,
   gerarPropostaDashboardAction,
@@ -72,6 +77,14 @@ export function TabDashboard({ demand }: TabDashboardProps) {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Governança de Workflow Read-Only
+  const estadoAtual = normalizarEstadoDemanda(demand.estado);
+  const isSuspensa = estadoAtual === EstadoDemanda.SUSPENSA;
+  const isConcluida = estadoAtual === EstadoDemanda.CONCLUIDA;
+  const isCancelada = estadoAtual === EstadoDemanda.CANCELADA;
+  const isTerminal = isEstadoTerminal(estadoAtual);
+  const isReadOnly = isSuspensa || isTerminal;
+
   // Estados dos Modais Operacionais (Subgate 3.4B)
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [isExemptionModalOpen, setIsExemptionModalOpen] = useState(false);
@@ -120,12 +133,14 @@ export function TabDashboard({ demand }: TabDashboardProps) {
   }, [demand.id]);
 
   const handleOpenCreateMeasureModal = (metricaSugeridaId?: string) => {
+    if (isReadOnly) return;
     setSelectedMeasure(null);
     setPreSelectedMetricId(metricaSugeridaId ?? null);
     setIsCreateMeasureModalOpen(true);
   };
 
   const handleOpenEditMeasureModal = (medida: MedidaDax) => {
+    if (isReadOnly) return;
     setSelectedMeasure(medida);
     setPreSelectedMetricId(null);
     setIsEditMeasureModalOpen(true);
@@ -137,11 +152,13 @@ export function TabDashboard({ demand }: TabDashboardProps) {
   };
 
   const handleOpenDeleteMeasureModal = (medida: MedidaDax) => {
+    if (isReadOnly) return;
     setSelectedMeasure(medida);
     setIsDeleteMeasureModalOpen(true);
   };
 
   const handleGerarProposta = async (templateId: string) => {
+    if (isReadOnly) return;
     setIsGerandoProposta(true);
     try {
       const res = await gerarPropostaDashboardAction(
@@ -161,7 +178,7 @@ export function TabDashboard({ demand }: TabDashboardProps) {
   };
 
   const handleAprovarProposta = async () => {
-    if (!propostaAtual) return;
+    if (isReadOnly || !propostaAtual) return;
     setIsAprovandoProposta(true);
     try {
       const res = await aprovarPropostaDashboardAction(demand.id, propostaAtual);
@@ -183,6 +200,7 @@ export function TabDashboard({ demand }: TabDashboardProps) {
   };
 
   const handleExcluirPagina = async (paginaId: string) => {
+    if (isReadOnly) return;
     try {
       const res = await excluirPaginaRelatorioAction(paginaId, demand.id);
       if (res.success) {
@@ -196,6 +214,7 @@ export function TabDashboard({ demand }: TabDashboardProps) {
   };
 
   const handleExcluirVisual = async (visualId: string) => {
+    if (isReadOnly) return;
     try {
       const res = await excluirVisualDashboardAction(visualId, demand.id);
       if (res.success) {
@@ -209,6 +228,7 @@ export function TabDashboard({ demand }: TabDashboardProps) {
   };
 
   const handleAlternarVisual = async (visualId: string, novoTipo: TipoVisualDashboard) => {
+    if (isReadOnly) return;
     try {
       const res = await alternarTipoVisualPersistidoAction(visualId, novoTipo, demand.id);
       if (res.success) {
@@ -310,6 +330,21 @@ export function TabDashboard({ demand }: TabDashboardProps) {
 
   return (
     <div data-testid="tab-dashboard-container" className="space-y-6">
+      {/* Banner de Governança Read-Only quando aplicável */}
+      {isReadOnly && (
+        <div
+          className="flex items-center gap-2.5 rounded-lg border border-amber-800/80 bg-amber-950/40 p-3.5 text-xs text-amber-300"
+          data-testid="dashboard-banner-readonly-governance"
+        >
+          <ShieldAlert className="h-4 w-4 shrink-0 text-amber-400" />
+          <span>
+            {isSuspensa && 'Demanda Suspensa: O registro e edição de modelos Power BI, DAX e componentes visuais estão congelados enquanto a demanda estiver suspensa.'}
+            {isConcluida && 'Demanda Concluída: O modelo Power BI, medidas DAX e visuais estão imutáveis para fins de auditoria e entregáveis.'}
+            {isCancelada && 'Demanda Cancelada: As definições de dashboard estão arquivadas em modo somente-leitura.'}
+          </span>
+        </div>
+      )}
+
       {/* 1. Cabeçalho Pedagógico com Propósito e Próxima Ação */}
       <DashboardPedagogicalHeader
         estadoPedagogico={estadoPedagogico}
@@ -341,9 +376,10 @@ export function TabDashboard({ demand }: TabDashboardProps) {
               totalMedidas={medidas.length}
               totalPaginas={paginas.length}
               totalVisuais={visuais.length}
-              onOpenRegisterModal={() => setIsRegisterModalOpen(true)}
-              onOpenExemptionModal={() => setIsExemptionModalOpen(true)}
-              onOpenEditModal={() => setIsEditModalOpen(true)}
+              isReadOnly={isReadOnly}
+              onOpenRegisterModal={() => !isReadOnly && setIsRegisterModalOpen(true)}
+              onOpenExemptionModal={() => !isReadOnly && setIsExemptionModalOpen(true)}
+              onOpenEditModal={() => !isReadOnly && setIsEditModalOpen(true)}
             />
           )}
 
@@ -357,6 +393,7 @@ export function TabDashboard({ demand }: TabDashboardProps) {
               metricasHomologadas={modeloAnalitico?.metricas ?? []}
               modeloAnaliticoNome={modeloAnalitico?.nome}
               datasetNome={modeloAnalitico?.dataset_autorizado_id}
+              isReadOnly={isReadOnly}
               onOpenCreateModal={handleOpenCreateMeasureModal}
               onOpenEditModal={handleOpenEditMeasureModal}
               onOpenInspectModal={handleOpenInspectMeasureModal}
@@ -373,11 +410,12 @@ export function TabDashboard({ demand }: TabDashboardProps) {
               propostaAtual={propostaAtual}
               isGerandoProposta={isGerandoProposta}
               isAprovandoProposta={isAprovandoProposta}
+              isReadOnly={isReadOnly}
               onGerarProposta={handleGerarProposta}
               onAprovarProposta={handleAprovarProposta}
               onDescartarProposta={handleDescartarProposta}
               onExcluirPagina={handleExcluirPagina}
-              onOpenCreateModal={() => setIsCreatePageModalOpen(true)}
+              onOpenCreateModal={() => !isReadOnly && setIsCreatePageModalOpen(true)}
               onNavegarParaVisuais={handleNavegarParaVisuais}
             />
           )}
@@ -388,7 +426,9 @@ export function TabDashboard({ demand }: TabDashboardProps) {
               paginas={paginas}
               medidas={medidas}
               isIsento={isIsento}
+              isReadOnly={isReadOnly}
               onOpenCreateModal={() => {
+                if (isReadOnly) return;
                 setPaginaPreSelecionadaIdParaVisual(paginas[0]?.id || null);
                 setIsCreateVisualModalOpen(true);
               }}

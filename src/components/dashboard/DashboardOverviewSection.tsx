@@ -40,6 +40,7 @@ interface DashboardOverviewSectionProps {
   totalMedidas: number;
   totalPaginas: number;
   totalVisuais: number;
+  isReadOnly?: boolean;
   onOpenRegisterModal?: () => void;
   onOpenExemptionModal?: () => void;
   onOpenEditModal?: () => void;
@@ -51,6 +52,7 @@ export function DashboardOverviewSection({
   totalMedidas,
   totalPaginas,
   totalVisuais,
+  isReadOnly = false,
   onOpenRegisterModal,
   onOpenExemptionModal,
   onOpenEditModal,
@@ -92,7 +94,7 @@ export function DashboardOverviewSection({
               </div>
             </div>
 
-            {onOpenEditModal && (
+            {!isReadOnly && onOpenEditModal && (
               <button
                 type="button"
                 onClick={onOpenEditModal}
@@ -125,26 +127,32 @@ export function DashboardOverviewSection({
             a isenção de Power BI caso a demanda seja estritamente tabular.
           </p>
 
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-            <button
-              type="button"
-              onClick={onOpenRegisterModal}
-              data-testid="btn-open-register-pbi"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 font-semibold text-white text-xs hover:bg-blue-500 transition-colors shadow-lg shadow-blue-900/30"
-            >
-              <span>Registrar Arquivo Power BI (.pbix / .pbip)</span>
-              <ArrowRight className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={onOpenExemptionModal}
-              data-testid="btn-open-declare-exemption"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-xs font-medium hover:text-white hover:bg-slate-700 transition-colors"
-            >
-              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" />
-              <span>Declarar Isenção (Excel-Only)</span>
-            </button>
-          </div>
+          {!isReadOnly ? (
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={onOpenRegisterModal}
+                data-testid="btn-open-register-pbi"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 font-semibold text-white text-xs hover:bg-blue-500 transition-colors shadow-lg shadow-blue-900/30"
+              >
+                <span>Registrar Arquivo Power BI (.pbix / .pbip)</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={onOpenExemptionModal}
+                data-testid="btn-open-declare-exemption"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-xs font-medium hover:text-white hover:bg-slate-700 transition-colors"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" />
+                <span>Declarar Isenção (Excel-Only)</span>
+              </button>
+            </div>
+          ) : (
+            <div className="mt-4 p-3 rounded-lg bg-slate-950/60 border border-slate-800 text-xs text-slate-400 max-w-md mx-auto">
+              <span>Registro de modelo Power BI desabilitado enquanto a demanda estiver imutável.</span>
+            </div>
+          )}
 
           {/* Contexto do Modelo Analítico Vigente */}
           {modeloAnalitico ? (
@@ -240,7 +248,7 @@ export function DashboardOverviewSection({
                 </span>
               </div>
             )}
-            {onOpenEditModal && (
+            {!isReadOnly && onOpenEditModal && (
               <div className="border-l border-slate-800 pl-3">
                 <button
                   type="button"

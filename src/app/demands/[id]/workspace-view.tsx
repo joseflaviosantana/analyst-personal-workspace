@@ -37,7 +37,9 @@ import { SuspendDemandModal } from '@/components/workflow/SuspendDemandModal';
 import { ResumeDemandModal } from '@/components/workflow/ResumeDemandModal';
 import { CancelDemandModal } from '@/components/workflow/CancelDemandModal';
 import { TimelineView } from '@/components/workflow/TimelineView';
+import { ConfirmEncerramentoModal } from '@/components/deliverables/ConfirmEncerramentoModal';
 import { advanceDemandAction } from '@/app/actions/workflow-actions';
+import { formalizarEncerramentoDemandaAction } from '@/app/actions/deliverable-actions';
 
 import { AtivoDados } from '@/core/domain/entities/ativo-dados';
 import { TabDataAssets } from '@/components/demands/TabDataAssets';
@@ -71,6 +73,7 @@ export function DemandWorkspaceView({
   const [isSuspendModalOpen, setIsSuspendModalOpen] = useState(false);
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [isConfirmEncerramentoModalOpen, setIsConfirmEncerramentoModalOpen] = useState(false);
 
   const estadoAtual = normalizarEstadoDemanda(demand.estado);
   const isSuspensa = estadoAtual === EstadoDemanda.SUSPENSA;
@@ -81,6 +84,10 @@ export function DemandWorkspaceView({
 
   const handleAdvance = async () => {
     if (!proximoEstado) return;
+    if (proximoEstado === EstadoDemanda.CONCLUIDA) {
+      setIsConfirmEncerramentoModalOpen(true);
+      return;
+    }
     setIsAdvancing(true);
     setFeedback(null);
     try {
@@ -91,6 +98,27 @@ export function DemandWorkspaceView({
         setFeedback({
           type: 'success',
           message: `Demanda avançada com sucesso para ${ROTULOS_ESTADO_DEMANDA[proximoEstado]}.`
+        });
+        router.refresh();
+      }
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err?.message || 'Erro inesperado.' });
+    } finally {
+      setIsAdvancing(false);
+    }
+  };
+
+  const handleConfirmEncerramento = async (justificativa?: string) => {
+    setIsAdvancing(true);
+    setFeedback(null);
+    try {
+      const res = await formalizarEncerramentoDemandaAction(demand.id, justificativa);
+      if (!res.success) {
+        setFeedback({ type: 'error', message: res.error || 'Falha ao formalizar conclusão da demanda.' });
+      } else {
+        setFeedback({
+          type: 'success',
+          message: 'Demanda CONCLUÍDA formalmente com governança integral.',
         });
         router.refresh();
       }
@@ -116,7 +144,7 @@ export function DemandWorkspaceView({
     { id: 'powerbi', label: '7. Power BI & DAX', ready: true },
     { id: 'findings', label: '8. Evidências', ready: true },
     { id: 'validation', label: '9. Validação', ready: true },
-    { id: 'deliverables', label: '10. Entregáveis', ready: false },
+    { id: 'deliverables', label: '10. Entregáveis', ready: true },
     { id: 'dossier', label: '11. Dossiê & Portfólio', ready: false },
   ];
 
@@ -442,6 +470,14 @@ export function DemandWorkspaceView({
         demandaId={demand.id}
         demandaTitulo={demand.titulo}
         onSuccess={() => handleModalSuccess(`Demanda "${demand.titulo}" cancelada com sucesso.`)}
+      />
+
+      <ConfirmEncerramentoModal
+        isOpen={isConfirmEncerramentoModalOpen}
+        onClose={() => setIsConfirmEncerramentoModalOpen(false)}
+        onConfirm={handleConfirmEncerramento}
+        demandaTitulo={demand.titulo}
+        isSubmitting={isAdvancing}
       />
     </div>
   );

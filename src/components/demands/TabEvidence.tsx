@@ -62,6 +62,11 @@ import {
   deliberarEvidenciaAction,
   alterarExposicaoEvidenciaAction,
 } from '@/app/actions/evidence-actions';
+import {
+  EstadoDemanda,
+  normalizarEstadoDemanda,
+  isEstadoTerminal,
+} from '@/core/domain/enums/estado-demanda';
 
 interface TabEvidenceProps {
   demand: DemandaComProjeto;
@@ -76,6 +81,14 @@ export function TabEvidence({ demand }: TabEvidenceProps) {
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null
   );
+
+  // Governança de Workflow Read-Only
+  const estadoAtual = normalizarEstadoDemanda(demand.estado);
+  const isSuspensa = estadoAtual === EstadoDemanda.SUSPENSA;
+  const isConcluida = estadoAtual === EstadoDemanda.CONCLUIDA;
+  const isCancelada = estadoAtual === EstadoDemanda.CANCELADA;
+  const isTerminal = isEstadoTerminal(estadoAtual);
+  const isReadOnly = isSuspensa || isTerminal;
 
   // Filtros
   const [filtroStatus, setFiltroStatus] = useState<string>('TODOS');
@@ -132,6 +145,7 @@ export function TabEvidence({ demand }: TabEvidenceProps) {
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isReadOnly) return;
     setActionLoading(true);
     setFeedback(null);
     try {
@@ -186,6 +200,7 @@ export function TabEvidence({ demand }: TabEvidenceProps) {
   };
 
   const handleAbrirDeliberacao = (ev: EvidenciaAnalitica, status: 'CONFIRMADA' | 'REJEITADA') => {
+    if (isReadOnly) return;
     setEvidenciaParaDeliberar(ev);
     setStatusDeliberacao(status);
     setJustificativaDeliberacao('');
@@ -194,6 +209,7 @@ export function TabEvidence({ demand }: TabEvidenceProps) {
 
   const handleDeliberarSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isReadOnly) return;
     if (!evidenciaParaDeliberar) return;
 
     setActionLoading(true);
@@ -232,6 +248,7 @@ export function TabEvidence({ demand }: TabEvidenceProps) {
     ev: EvidenciaAnalitica,
     novaClassificacao: ClassificacaoExposicaoEvidencia
   ) => {
+    if (isReadOnly) return;
     setActionLoading(true);
     setFeedback(null);
     try {
@@ -279,6 +296,21 @@ export function TabEvidence({ demand }: TabEvidenceProps) {
 
   return (
     <div className="space-y-6" data-testid="tab-evidence-container">
+      {/* Banner de Governança Read-Only quando aplicável */}
+      {isReadOnly && (
+        <div
+          className="flex items-center gap-2.5 rounded-lg border border-amber-800/80 bg-amber-950/40 p-3.5 text-xs text-amber-300"
+          data-testid="evidence-banner-readonly-governance"
+        >
+          <ShieldAlert className="h-4 w-4 shrink-0 text-amber-400" />
+          <span>
+            {isSuspensa && 'Demanda Suspensa: O registro e deliberação de evidências analíticas estão congelados enquanto a demanda estiver suspensa.'}
+            {isConcluida && 'Demanda Concluída: O repositório de evidências analíticas está imutável para fins de auditoria, conformidade e prestação de contas.'}
+            {isCancelada && 'Demanda Cancelada: As evidências analíticas estão arquivadas em modo somente-leitura.'}
+          </span>
+        </div>
+      )}
+
       {/* Feedback Alert */}
       {feedback && (
         <div
@@ -331,15 +363,17 @@ export function TabEvidence({ demand }: TabEvidenceProps) {
             <span>Atualizar</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => setIsCreateModalOpen(true)}
-            data-testid="btn-nova-evidencia"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Registrar Evidência</span>
-          </button>
+          {!isReadOnly && (
+            <button
+              type="button"
+              onClick={() => setIsCreateModalOpen(true)}
+              data-testid="btn-nova-evidencia"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Registrar Evidência</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -475,17 +509,19 @@ export function TabEvidence({ demand }: TabEvidenceProps) {
             O Evidence Core registra marcos verificáveis do trabalho analítico (descobertas de
             dados, anomalias tratadas, regras DAX validadas, conciliações e homologações).
           </p>
-          <div className="mt-6 flex flex-wrap justify-center gap-3">
-            <button
-              type="button"
-              onClick={() => setIsCreateModalOpen(true)}
-              data-testid="btn-empty-state-nova-evidencia"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-500 shadow-sm transition-colors"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Registrar Primeira Evidência Manual</span>
-            </button>
-          </div>
+          {!isReadOnly && (
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => setIsCreateModalOpen(true)}
+                data-testid="btn-empty-state-nova-evidencia"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-500 shadow-sm transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Registrar Primeira Evidência Manual</span>
+              </button>
+            </div>
+          )}
         </Card>
       ) : evidenciasFiltradas.length === 0 ? (
         <Card className="p-8 text-center bg-slate-900/40 border-slate-800">
@@ -683,9 +719,9 @@ export function TabEvidence({ demand }: TabEvidenceProps) {
                           e.target.value as ClassificacaoExposicaoEvidencia
                         )
                       }
-                      disabled={actionLoading}
+                      disabled={actionLoading || isReadOnly}
                       data-testid={`select-exposicao-${ev.id}`}
-                      className="rounded bg-slate-800 border border-slate-700 px-2 py-1 text-[11px] text-slate-200 focus:outline-none focus:border-indigo-500"
+                      className="rounded bg-slate-800 border border-slate-700 px-2 py-1 text-[11px] text-slate-200 focus:outline-none focus:border-indigo-500 disabled:opacity-50"
                     >
                       <option value={ClassificacaoExposicaoEvidencia.INTERNA}>Interna</option>
                       <option value={ClassificacaoExposicaoEvidencia.CONFIDENCIAL}>Confidencial</option>
@@ -694,33 +730,35 @@ export function TabEvidence({ demand }: TabEvidenceProps) {
                     </select>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    {!isConfirmada && (
-                      <button
-                        type="button"
-                        onClick={() => handleAbrirDeliberacao(ev, 'CONFIRMADA')}
-                        disabled={actionLoading}
-                        data-testid={`btn-confirmar-evidencia-${ev.id}`}
-                        className="inline-flex items-center gap-1 rounded bg-emerald-950 border border-emerald-800/80 px-2.5 py-1 text-[11px] font-semibold text-emerald-300 hover:bg-emerald-900 hover:text-white transition-colors disabled:opacity-50"
-                      >
-                        <CheckCircle2 className="h-3 w-3" />
-                        <span>Confirmar Evidência</span>
-                      </button>
-                    )}
+                  {!isReadOnly && (
+                    <div className="flex items-center gap-2">
+                      {!isConfirmada && (
+                        <button
+                          type="button"
+                          onClick={() => handleAbrirDeliberacao(ev, 'CONFIRMADA')}
+                          disabled={actionLoading}
+                          data-testid={`btn-confirmar-evidencia-${ev.id}`}
+                          className="inline-flex items-center gap-1 rounded bg-emerald-950 border border-emerald-800/80 px-2.5 py-1 text-[11px] font-semibold text-emerald-300 hover:bg-emerald-900 hover:text-white transition-colors disabled:opacity-50"
+                        >
+                          <CheckCircle2 className="h-3 w-3" />
+                          <span>Confirmar Evidência</span>
+                        </button>
+                      )}
 
-                    {!isRejeitada && (
-                      <button
-                        type="button"
-                        onClick={() => handleAbrirDeliberacao(ev, 'REJEITADA')}
-                        disabled={actionLoading}
-                        data-testid={`btn-rejeitar-evidencia-${ev.id}`}
-                        className="inline-flex items-center gap-1 rounded bg-rose-950 border border-rose-800/80 px-2.5 py-1 text-[11px] font-semibold text-rose-300 hover:bg-rose-900 hover:text-white transition-colors disabled:opacity-50"
-                      >
-                        <XCircle className="h-3 w-3" />
-                        <span>Rejeitar</span>
-                      </button>
-                    )}
-                  </div>
+                      {!isRejeitada && (
+                        <button
+                          type="button"
+                          onClick={() => handleAbrirDeliberacao(ev, 'REJEITADA')}
+                          disabled={actionLoading}
+                          data-testid={`btn-rejeitar-evidencia-${ev.id}`}
+                          className="inline-flex items-center gap-1 rounded bg-rose-950 border border-rose-800/80 px-2.5 py-1 text-[11px] font-semibold text-rose-300 hover:bg-rose-900 hover:text-white transition-colors disabled:opacity-50"
+                        >
+                          <XCircle className="h-3 w-3" />
+                          <span>Rejeitar</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </Card>
             );

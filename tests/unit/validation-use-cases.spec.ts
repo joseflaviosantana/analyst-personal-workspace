@@ -10,9 +10,13 @@ import { RegistrarAceiteEntregaUseCase } from '@/core/use-cases/validation/regis
 import { RemoverEntregavelDemandaUseCase } from '@/core/use-cases/validation/remover-entregavel-demanda.use-case';
 import { ListarEntregaveisDemandaUseCase } from '@/core/use-cases/validation/listar-entregaveis-demanda.use-case';
 import { AvaliarProntidaoValidacaoUseCase } from '@/core/use-cases/validation/avaliar-prontidao-validacao.use-case';
+import { FormalizarEncerramentoDemandaUseCase } from '@/core/use-cases/validation/formalizar-encerramento-demanda.use-case';
 import { IValidacaoConciliacaoRepository } from '@/core/domain/repositories/validacao-conciliacao-repository.interface';
 import { IEntregavelDemandaRepository } from '@/core/domain/repositories/entregavel-demanda-repository.interface';
 import { IAuditRepository } from '@/core/domain/repositories/audit-repository.interface';
+import { IDemandRepository } from '@/core/domain/repositories/demand-repository.interface';
+import { EstadoDemanda } from '@/core/domain/enums/estado-demanda';
+import { DemandaComProjeto } from '@/core/domain/entities/demanda';
 import { CamadaValidacao } from '@/core/domain/enums/camada-validacao';
 import { ResultadoValidacao } from '@/core/domain/enums/resultado-validacao';
 import { TipoEntregavel } from '@/core/domain/enums/tipo-entregavel';
@@ -24,13 +28,52 @@ import { EntregavelDemanda } from '@/core/domain/entities/entregavel-demanda';
 describe('Unit Tests: Use Cases de Validação e Entregáveis (Subunidade 3.7A)', () => {
   let mockValidacoes: ValidacaoConciliacao[];
   let mockEntregaveis: EntregavelDemanda[];
+  let mockDemandas: DemandaComProjeto[];
   let validacaoRepo: IValidacaoConciliacaoRepository;
   let entregavelRepo: IEntregavelDemandaRepository;
   let auditRepo: IAuditRepository;
+  let demandRepo: IDemandRepository;
+  let mockProcessarEventoUseCase: any;
 
   beforeEach(() => {
     mockValidacoes = [];
     mockEntregaveis = [];
+    mockDemandas = [
+      {
+        id: 'dem_1',
+        projeto_id: 'prj_1',
+        projetoNome: 'Projeto Alfa',
+        titulo: 'Demanda de Teste',
+        solicitacao_bruta: 'Solicitação de teste',
+        contexto: 'Contexto',
+        objetivo_inicial: 'Objetivo',
+        prazo_esperado: null,
+        restricoes_declaradas: null,
+        estado: EstadoDemanda.PRONTA_PARA_ENTREGA,
+        estado_anterior: EstadoDemanda.EM_VALIDACAO,
+        criado_em: '2026-10-01T10:00:00Z',
+        atualizado_em: '2026-10-01T10:00:00Z',
+        data_conclusao: null,
+      },
+    ];
+
+    demandRepo = {
+      create: vi.fn(),
+      findById: vi.fn(async (id) => mockDemandas.find((d) => d.id === id) || null),
+      findByProjectId: vi.fn(async () => []),
+      findAll: vi.fn(async () => mockDemandas),
+      update: vi.fn(async (id, partial) => {
+        const idx = mockDemandas.findIndex((d) => d.id === id);
+        if (idx === -1) return null;
+        mockDemandas[idx] = { ...mockDemandas[idx], ...partial };
+        return mockDemandas[idx];
+      }),
+      delete: vi.fn(),
+    } as any;
+
+    mockProcessarEventoUseCase = {
+      execute: vi.fn(async () => {}),
+    };
 
     validacaoRepo = {
       create: vi.fn(async (v) => {
@@ -309,6 +352,155 @@ describe('Unit Tests: Use Cases de Validação e Entregáveis (Subunidade 3.7A)'
       expect(res.total_entregaveis).toBe(1);
       expect(res.pronto_para_entrega).toBe(true);
       expect(res.pronto_para_conclusao).toBe(false); // falta aceite
+    });
+  });
+
+  describe('FormalizarEncerramentoDemandaUseCase (Canônico B-3)', () => {
+    it('deve lançar erro se a demanda não existir', async () => {
+      const useCase = new FormalizarEncerramentoDemandaUseCase(
+        demandRepo,
+        entregavelRepo,
+        validacaoRepo,
+        auditRepo,
+        mockProcessarEventoUseCase
+      );
+
+      await expect(
+        useCase.execute({ demandaId: 'demanda_inexistente' })
+      ).rejects.toThrow(/não encontrada/);
+    });
+
+    it('deve ser idempotente caso a demanda já esteja CONCLUIDA', async () => {
+      mockDemandas[0].estado = EstadoDemanda.CONCLUIDA;
+      mockDemandas[0].data_conclusao = '2026-10-01T12:00:00Z';
+
+      const useCase = new FormalizarEncerramentoDemandaUseCase(
+        demandRepo,
+        entregavelRepo,
+        validacaoRepo,
+        auditRepo,
+        mockProcessarEventoUseCase
+      );
+
+      const res = await useCase.execute({ demandaId: 'dem_1' });
+
+      expect(res.estado).toBe(EstadoDemanda.CONCLUIDA);
+      expect(demandRepo.update).not.toHaveBeenCalled();
+      expect(auditRepo.record).not.toHaveBeenCalled();
+      expect(mockProcessarEventoUseCase.execute).not.toHaveBeenCalled();
+    });
+
+    it('deve bloquear conclusão se entregáveis obrigatórios não estiverem com aceite formal', async () => {
+      // Cria entregável obrigatório sem aceite
+      await entregavelRepo.create({
+        id: 'ent_1',
+        demanda_id: 'dem_1',
+        titulo: 'Dashboard Executivo',
+        tipo: TipoEntregavel.DASHBOARD_POWERBI,
+        versao: '1.0',
+        obrigatorio: true,
+        caminho_arquivo_ou_link: '/link',
+        status: StatusEntregavel.DISPONIVEL,
+        aceite_status: StatusAceiteEntrega.PENDENTE,
+        criado_em: '2026-10-01T10:00:00Z',
+        atualizado_em: '2026-10-01T10:00:00Z',
+      });
+
+      const useCase = new FormalizarEncerramentoDemandaUseCase(
+        demandRepo,
+        entregavelRepo,
+        validacaoRepo,
+        auditRepo,
+        mockProcessarEventoUseCase
+      );
+
+      await expect(
+        useCase.execute({
+          demandaId: 'dem_1',
+          justificativa: 'Tentando concluir sem aceite',
+        })
+      ).rejects.toThrow();
+    });
+
+    it('deve concluir com sucesso quando aceite formal estiver homologado', async () => {
+      // Validação numérica aprovada
+      await validacaoRepo.create({
+        id: 'val_1',
+        demanda_id: 'dem_1',
+        titulo: 'Conciliação KPI',
+        camada: CamadaValidacao.CONCILIACAO_CRUZADA_KPI,
+        metodo_verificacao: 'Check',
+        valor_esperado: 100,
+        valor_obtido: 100,
+        tolerancia_permitida: 0,
+        divergencia_absoluta: 0,
+        divergencia_percentual: 0,
+        resultado: ResultadoValidacao.APROVADO,
+        obrigatoria: true,
+        executado_por: 'HUMANO',
+        executado_em: '2026-10-01T10:00:00Z',
+        criado_em: '2026-10-01T10:00:00Z',
+        atualizado_em: '2026-10-01T10:00:00Z',
+      });
+
+      // Entregável com aceite formal
+      await entregavelRepo.create({
+        id: 'ent_1',
+        demanda_id: 'dem_1',
+        titulo: 'Dashboard Executivo',
+        tipo: TipoEntregavel.DASHBOARD_POWERBI,
+        versao: '1.0',
+        obrigatorio: true,
+        caminho_arquivo_ou_link: '/link',
+        status: StatusEntregavel.HOMOLOGADO,
+        aceite_status: StatusAceiteEntrega.ACEITO,
+        aceite_por: 'Diretoria',
+        aceite_em: '2026-10-01T11:00:00Z',
+        aceite_justificativa: 'Aceito integralmente',
+        criado_em: '2026-10-01T10:00:00Z',
+        atualizado_em: '2026-10-01T11:00:00Z',
+      });
+
+      const useCase = new FormalizarEncerramentoDemandaUseCase(
+        demandRepo,
+        entregavelRepo,
+        validacaoRepo,
+        auditRepo,
+        mockProcessarEventoUseCase
+      );
+
+      const res = await useCase.execute({
+        demandaId: 'dem_1',
+        justificativa: 'Encerramento formal homologado pelo usuário.',
+      });
+
+      expect(res.estado).toBe(EstadoDemanda.CONCLUIDA);
+      expect(res.data_conclusao).toBeDefined();
+
+      // Verifica chamada ao update
+      expect(demandRepo.update).toHaveBeenCalledWith(
+        'dem_1',
+        expect.objectContaining({
+          estado: EstadoDemanda.CONCLUIDA,
+        })
+      );
+
+      // Verifica gravação na trilha de auditoria
+      expect(auditRepo.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          demanda_id: 'dem_1',
+          tipo_evento: 'TRANSICAO_ESTADO',
+          autor_tipo: 'HUMANO',
+        })
+      );
+
+      // Verifica despacho determinístico de evento analítico
+      expect(mockProcessarEventoUseCase.execute).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tipo_evento: 'ENTREGA_ENCERRAMENTO_FORMALIZADO',
+          demanda_id: 'dem_1',
+        })
+      );
     });
   });
 });

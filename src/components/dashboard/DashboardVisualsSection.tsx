@@ -48,6 +48,7 @@ interface DashboardVisualsSectionProps {
   paginas?: PaginaRelatorio[];
   medidas?: MedidaDax[];
   isIsento?: boolean;
+  isReadOnly?: boolean;
   onOpenCreateModal?: () => void;
   onExcluirVisual?: (visualId: string) => Promise<void>;
   onAlternarVisual?: (visualId: string, novoTipo: TipoVisualDashboard) => Promise<void>;
@@ -58,6 +59,7 @@ export function DashboardVisualsSection({
   paginas = [],
   medidas = [],
   isIsento = false,
+  isReadOnly = false,
   onOpenCreateModal,
   onExcluirVisual,
   onAlternarVisual,
@@ -141,7 +143,7 @@ export function DashboardVisualsSection({
             </select>
           )}
 
-          {onOpenCreateModal && (
+          {!isReadOnly && onOpenCreateModal && (
             <button
               type="button"
               onClick={onOpenCreateModal}
@@ -208,7 +210,7 @@ export function DashboardVisualsSection({
                         {ROTULOS_TIPO_VISUAL_DASHBOARD[visual.tipo_visual] || visual.tipo_visual}
                       </span>
 
-                      {onExcluirVisual && (
+                      {!isReadOnly && onExcluirVisual && (
                         <button
                           type="button"
                           onClick={() => handleExcluir(visual.id)}
@@ -312,7 +314,7 @@ export function DashboardVisualsSection({
                                   <p className="text-slate-400">{alt.motivo}</p>
                                 </div>
 
-                                {onAlternarVisual && (
+                                {!isReadOnly && onAlternarVisual && (
                                   <button
                                     type="button"
                                     onClick={() => handleAlternarTipo(visual.id, alt.tipo)}

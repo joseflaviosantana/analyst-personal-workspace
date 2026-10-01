@@ -48,6 +48,7 @@ interface DashboardPagesSectionProps {
   propostaAtual?: DashboardSpecification | null;
   isGerandoProposta?: boolean;
   isAprovandoProposta?: boolean;
+  isReadOnly?: boolean;
   onGerarProposta?: (templateId: string) => Promise<void>;
   onAprovarProposta?: () => Promise<void>;
   onDescartarProposta?: () => void;
@@ -62,6 +63,7 @@ export function DashboardPagesSection({
   propostaAtual = null,
   isGerandoProposta = false,
   isAprovandoProposta = false,
+  isReadOnly = false,
   onGerarProposta,
   onAprovarProposta,
   onDescartarProposta,
@@ -139,7 +141,7 @@ export function DashboardPagesSection({
             </div>
 
             <div className="flex items-center gap-2">
-              {onDescartarProposta && (
+              {!isReadOnly && onDescartarProposta && (
                 <button
                   type="button"
                   onClick={onDescartarProposta}
@@ -151,7 +153,7 @@ export function DashboardPagesSection({
                 </button>
               )}
 
-              {onAprovarProposta && (
+              {!isReadOnly && onAprovarProposta && (
                 <button
                   type="button"
                   onClick={onAprovarProposta}
@@ -238,7 +240,7 @@ export function DashboardPagesSection({
         </div>
 
         <div className="flex items-center gap-2">
-          {onOpenCreateModal && (
+          {!isReadOnly && onOpenCreateModal && (
             <button
               type="button"
               onClick={onOpenCreateModal}
@@ -253,7 +255,7 @@ export function DashboardPagesSection({
       </div>
 
       {/* 3. GERADOR DE PROPOSTA AUTOMÁTICA (CARD OPERACIONAL) */}
-      {!propostaAtual && (
+      {!propostaAtual && !isReadOnly && (
         <Card
           data-testid="dashboard-planner-cta"
           className="p-4 border-indigo-900/40 bg-indigo-950/20 flex flex-col md:flex-row md:items-center justify-between gap-4"
@@ -338,7 +340,7 @@ export function DashboardPagesSection({
                       <span>{ROTULOS_PUBLICO_ALVO_PAGINA[pagina.publico_alvo] || pagina.publico_alvo}</span>
                     </span>
 
-                    {onExcluirPagina && (
+                    {!isReadOnly && onExcluirPagina && (
                       <button
                         type="button"
                         onClick={() => handleExcluir(pagina.id)}

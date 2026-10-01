@@ -28,6 +28,14 @@ import { IValidacaoConciliacaoRepository } from '@/core/domain/repositories/vali
 import { IEntregavelDemandaRepository } from '@/core/domain/repositories/entregavel-demanda-repository.interface';
 import { ModelingRulesEvaluator } from '@/core/domain/rules/modeling-rules-evaluator';
 import { ValidationRulesEvaluator } from '@/core/domain/rules/validation-rules-evaluator';
+import { FormalizarEncerramentoDemandaUseCase } from '@/core/use-cases/validation';
+import { SqliteEventoAnaliticoLogRepository } from '@/infrastructure/db/repositories/sqlite-evento-analitico-log-repository';
+import { SqliteEvidenciaAnaliticaRepository } from '@/infrastructure/db/repositories/sqlite-evidencia-analitica-repository';
+import {
+  RegistrarEvidenciaUseCase,
+  ProcessarEventoAnaliticoUseCase,
+} from '@/core/use-cases/evidence';
+import { criarEvidenceEventEnginePadrao } from '@/core/domain/evidence-events';
 
 import { 
   TransitionDemandStateUseCase,
@@ -64,6 +72,7 @@ export interface WorkflowActionDeps {
   modeloRepo?: IModeloAnaliticoRepository;
   validacaoRepo?: IValidacaoConciliacaoRepository;
   entregavelRepo?: IEntregavelDemandaRepository;
+  processarEventoUseCase?: ProcessarEventoAnaliticoUseCase;
 }
 
 const defaultDemandRepo = new SqliteDemandRepository();
@@ -89,7 +98,23 @@ function resolveWorkflowDeps(customDeps?: Partial<WorkflowActionDeps>): Workflow
     modeloRepo: customDeps ? customDeps.modeloRepo : defaultModeloRepo,
     validacaoRepo: customDeps ? customDeps.validacaoRepo : defaultValidacaoRepo,
     entregavelRepo: customDeps ? customDeps.entregavelRepo : defaultEntregavelRepo,
+    processarEventoUseCase: customDeps?.processarEventoUseCase,
   };
+}
+
+function getProcessarEventoUseCase(deps: WorkflowActionDeps): ProcessarEventoAnaliticoUseCase {
+  if (deps.processarEventoUseCase) {
+    return deps.processarEventoUseCase;
+  }
+  const eventoLogRepo = new SqliteEventoAnaliticoLogRepository();
+  const evidenciaRepo = new SqliteEvidenciaAnaliticaRepository();
+  const engine = criarEvidenceEventEnginePadrao();
+  const registrarEvidenciaUseCase = new RegistrarEvidenciaUseCase(evidenciaRepo, deps.demandRepo);
+  return new ProcessarEventoAnaliticoUseCase(
+    engine,
+    eventoLogRepo,
+    registrarEvidenciaUseCase
+  );
 }
 
 function revalidateAllPaths(demandaId: string, projetoId?: string) {
@@ -241,9 +266,35 @@ export async function advanceDemandAction(
       return { success: false, error: 'Demanda não encontrada.' };
     }
 
+    // Idempotência canônica: se já estiver concluída, retorna com sucesso
+    if (demand.estado === EstadoDemanda.CONCLUIDA) {
+      return { success: true, data: demand };
+    }
+
     const proximoEstado = WorkflowEngine.proximoEstadoNormal(demand.estado);
     if (!proximoEstado) {
       return { success: false, error: 'Não há próximo estado sequencial disponível a partir do estado atual.' };
+    }
+
+    // Interceptação canônica: encerramento soberano para CONCLUIDA via use case unificado
+    if (proximoEstado === EstadoDemanda.CONCLUIDA) {
+      const processarEvento = getProcessarEventoUseCase(deps);
+      const formalizarUseCase = new FormalizarEncerramentoDemandaUseCase(
+        deps.demandRepo,
+        deps.entregavelRepo ?? defaultEntregavelRepo,
+        deps.validacaoRepo ?? defaultValidacaoRepo,
+        deps.auditRepo,
+        processarEvento
+      );
+
+      const updated = await formalizarUseCase.execute({
+        demandaId,
+        justificativa: justificativa ?? null,
+        autorTipo: 'HUMANO',
+      });
+
+      revalidateAllPaths(demandaId, updated.projeto_id);
+      return { success: true, data: updated };
     }
 
     const contextoExtra = await buildFactualTransitionContext(
@@ -289,6 +340,27 @@ export async function transitionDemandAction(
     const demand = await deps.demandRepo.findById(parsed.demandaId);
     if (!demand) {
       return { success: false, error: 'Demanda não encontrada.' };
+    }
+
+    // Interceptação canônica: encerramento soberano para CONCLUIDA via use case unificado
+    if (parsed.novoEstado === EstadoDemanda.CONCLUIDA) {
+      const processarEvento = getProcessarEventoUseCase(deps);
+      const formalizarUseCase = new FormalizarEncerramentoDemandaUseCase(
+        deps.demandRepo,
+        deps.entregavelRepo ?? defaultEntregavelRepo,
+        deps.validacaoRepo ?? defaultValidacaoRepo,
+        deps.auditRepo,
+        processarEvento
+      );
+
+      const updated = await formalizarUseCase.execute({
+        demandaId: parsed.demandaId,
+        justificativa: parsed.justificativa ?? null,
+        autorTipo: 'HUMANO',
+      });
+
+      revalidateAllPaths(parsed.demandaId, updated.projeto_id);
+      return { success: true, data: updated };
     }
 
     const contextoExtra = await buildFactualTransitionContext(

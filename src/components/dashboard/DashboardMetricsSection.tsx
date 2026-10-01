@@ -49,6 +49,7 @@ interface DashboardMetricsSectionProps {
   metricasHomologadas?: MetricaAnalitica[];
   modeloAnaliticoNome?: string | null;
   datasetNome?: string | null;
+  isReadOnly?: boolean;
   onOpenCreateModal?: (metricaSugeridaId?: string) => void;
   onOpenEditModal?: (medida: MedidaDax) => void;
   onOpenInspectModal?: (medida: MedidaDax) => void;
@@ -64,6 +65,7 @@ export function DashboardMetricsSection({
   metricasHomologadas = [],
   modeloAnaliticoNome,
   datasetNome,
+  isReadOnly = false,
   onOpenCreateModal,
   onOpenEditModal,
   onOpenInspectModal,
@@ -172,7 +174,7 @@ export function DashboardMetricsSection({
               </div>
             </div>
 
-            {metricasNaoCobertas.length > 0 && onOpenCreateModal && (
+            {metricasNaoCobertas.length > 0 && !isReadOnly && onOpenCreateModal && (
               <div className="flex items-center gap-2 self-start sm:self-auto">
                 <button
                   type="button"
@@ -203,7 +205,7 @@ export function DashboardMetricsSection({
           </p>
         </div>
 
-        {onOpenCreateModal && (
+        {!isReadOnly && onOpenCreateModal && (
           <button
             type="button"
             onClick={() => onOpenCreateModal()}
@@ -367,7 +369,7 @@ export function DashboardMetricsSection({
                       </button>
                     )}
 
-                    {onOpenEditModal && (
+                    {!isReadOnly && onOpenEditModal && (
                       <button
                         type="button"
                         onClick={() => onOpenEditModal(medida)}
@@ -379,7 +381,7 @@ export function DashboardMetricsSection({
                       </button>
                     )}
 
-                    {onOpenDeleteModal && (
+                    {!isReadOnly && onOpenDeleteModal && (
                       <button
                         type="button"
                         onClick={() => onOpenDeleteModal(medida)}

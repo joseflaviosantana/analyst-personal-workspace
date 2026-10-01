@@ -845,4 +845,46 @@ describe('Subgate 3.4A — Fundação Visual e Navegação da Aba 7 (Power BI & 
       expect(sectionEmpty).toBeDefined();
     });
   });
+
+  describe('10. Governança Read-Only da Aba 7 (B-2)', () => {
+    it('deve aceitar isReadOnly=true em DashboardOverviewSection', () => {
+      const section = React.createElement(DashboardOverviewSection, {
+        modeloPowerBi: null,
+        modeloAnalitico: null,
+        totalMedidas: 0,
+        totalPaginas: 0,
+        totalVisuais: 0,
+        isReadOnly: true,
+      });
+      expect(section).toBeDefined();
+      expect(section.props.isReadOnly).toBe(true);
+    });
+
+    it('deve aceitar isReadOnly=true em DashboardMetricsSection', () => {
+      const section = React.createElement(DashboardMetricsSection, {
+        medidas: [],
+        isReadOnly: true,
+      });
+      expect(section).toBeDefined();
+      expect(section.props.isReadOnly).toBe(true);
+    });
+
+    it('deve aceitar isReadOnly=true em DashboardPagesSection', () => {
+      const section = React.createElement(DashboardPagesSection, {
+        paginas: [],
+        isReadOnly: true,
+      });
+      expect(section).toBeDefined();
+      expect(section.props.isReadOnly).toBe(true);
+    });
+
+    it('deve aceitar isReadOnly=true em DashboardVisualsSection', () => {
+      const section = React.createElement(DashboardVisualsSection, {
+        visuais: [],
+        isReadOnly: true,
+      });
+      expect(section).toBeDefined();
+      expect(section.props.isReadOnly).toBe(true);
+    });
+  });
 });
