@@ -59,6 +59,21 @@ import {
   ToggleQualityRuleStatusInput,
 } from '@/lib/validations/quality-schema';
 
+import { SqliteDemandRepository } from '@/infrastructure/db/repositories/demand-repository';
+import { SqliteEventoAnaliticoLogRepository } from '@/infrastructure/db/repositories/sqlite-evento-analitico-log-repository';
+import { SqliteEvidenciaAnaliticaRepository } from '@/infrastructure/db/repositories/sqlite-evidencia-analitica-repository';
+import {
+  RegistrarEvidenciaUseCase,
+  ProcessarEventoAnaliticoUseCase,
+} from '@/core/use-cases/evidence';
+import {
+  criarEvidenceEventEnginePadrao,
+  EventoAnalitico,
+} from '@/core/domain/evidence-events';
+import { EtapaOrigemEvidencia } from '@/core/domain/enums/etapa-origem-evidencia';
+import { StatusExecucaoDiagnostico } from '@/core/domain/enums/status-execucao-diagnostico';
+import { StatusProblemaQualidade } from '@/core/domain/enums/status-problema-qualidade';
+
 export type QualityActionResult<T> =
   | { success: true; data: T }
   | { success: false; error: string };
@@ -69,6 +84,8 @@ export interface QualityActionDeps {
   problemasRepo: IProblemasQualidadeRepository;
   regrasRepo: IRegrasQualidadeRepository;
   auditRepo: IAuditRepository;
+  demandRepo?: SqliteDemandRepository;
+  processarEventoUseCase?: ProcessarEventoAnaliticoUseCase;
 }
 
 // Singletons padrão para execução em produção no servidor Next.js
@@ -77,14 +94,29 @@ const defaultDiagnosticosRepo = new SqliteDiagnosticosQualidadeRepository();
 const defaultProblemasRepo = new SqliteProblemasQualidadeRepository();
 const defaultRegrasRepo = new SqliteRegrasQualidadeRepository();
 const defaultAuditRepo = new SqliteAuditRepository();
+const defaultDemandRepo = new SqliteDemandRepository();
+const defaultEventLogRepo = new SqliteEventoAnaliticoLogRepository();
+const defaultEvidenciaRepo = new SqliteEvidenciaAnaliticaRepository();
+const defaultRegistrarEvidenciaUseCase = new RegistrarEvidenciaUseCase(defaultEvidenciaRepo, defaultDemandRepo);
+const defaultEventEngine = criarEvidenceEventEnginePadrao();
+const defaultProcessarEventoUseCase = new ProcessarEventoAnaliticoUseCase(
+  defaultEventEngine,
+  defaultEventLogRepo,
+  defaultRegistrarEvidenciaUseCase
+);
 
-function resolveDeps(customDeps?: Partial<QualityActionDeps>): QualityActionDeps {
+function resolveDeps(customDeps?: Partial<QualityActionDeps>): QualityActionDeps & {
+  demandRepo: SqliteDemandRepository;
+  processarEventoUseCase: ProcessarEventoAnaliticoUseCase;
+} {
   return {
     ativoDadosRepo: customDeps?.ativoDadosRepo ?? defaultAtivoDadosRepo,
     diagnosticosRepo: customDeps?.diagnosticosRepo ?? defaultDiagnosticosRepo,
     problemasRepo: customDeps?.problemasRepo ?? defaultProblemasRepo,
     regrasRepo: customDeps?.regrasRepo ?? defaultRegrasRepo,
     auditRepo: customDeps?.auditRepo ?? defaultAuditRepo,
+    demandRepo: customDeps?.demandRepo ?? defaultDemandRepo,
+    processarEventoUseCase: customDeps?.processarEventoUseCase ?? defaultProcessarEventoUseCase,
   };
 }
 
@@ -161,6 +193,43 @@ export async function deliberateQualityProblemAction(
       autorTipo: 'HUMANO',
     });
 
+    // Emissão Determinística de Evento Analítico (Subgate 3.5B.2)
+    try {
+      const timestampDeliberacao = problemaAtualizado.deliberado_em || problemaAtualizado.atualizado_em;
+      const idEvento = `evt_delib_${problemaAtualizado.id}_${timestampDeliberacao}`;
+      const demand = await deps.demandRepo.findById(parsed.demandaId);
+
+      const evento: EventoAnalitico = {
+        id_evento: idEvento,
+        demanda_id: parsed.demandaId,
+        projeto_id: demand?.projeto_id ?? null,
+        etapa_origem: EtapaOrigemEvidencia.QUALIDADE,
+        categoria: 'QUALIDADE',
+        tipo_evento: 'QUALIDADE_PROBLEMA_DELIBERADO',
+        ocorrido_em: timestampDeliberacao,
+        executor: 'ANALISTA',
+        artefato_origem_tipo: 'PROBLEMA_QUALIDADE',
+        artefato_origem_id: problemaAtualizado.id,
+        payload: {
+          problemaId: problemaAtualizado.id,
+          titulo: problemaAtualizado.titulo,
+          tabelaAfetada: problemaAtualizado.tabela_afetada,
+          colunaAfetada: problemaAtualizado.coluna_afetada,
+          totalLinhasAfetadas: problemaAtualizado.total_linhas_afetadas,
+          percentualLinhasAfetadas: problemaAtualizado.percentual_linhas_afetadas,
+          severidade: problemaAtualizado.severidade,
+          acaoDeliberada: problemaAtualizado.acao_deliberada || parsed.acaoDeliberada,
+          justificativa: problemaAtualizado.justificativa_deliberacao || parsed.justificativa,
+          impactoCalculo: problemaAtualizado.impacto_calculo,
+          deliberadoEm: timestampDeliberacao,
+        },
+        versao_contrato: '1.0',
+      };
+      await deps.processarEventoUseCase.execute(evento);
+    } catch {
+      // Falha isolada no motor de eventos
+    }
+
     revalidateQualityPaths(parsed.demandaId);
     return { success: true, data: problemaAtualizado };
   } catch (error: any) {
@@ -194,6 +263,41 @@ export async function updateQualityProblemStatusAction(
       autorTipo: 'HUMANO',
     });
 
+    // Emissão Determinística de Evento Analítico quando o status for TRATADO (Subgate 3.5B.2)
+    if (parsed.novoStatus === StatusProblemaQualidade.TRATADO) {
+      try {
+        const timestampResolucao = problemaAtualizado.atualizado_em;
+        const idEvento = `evt_res_${problemaAtualizado.id}_${timestampResolucao}`;
+        const demand = await deps.demandRepo.findById(parsed.demandaId);
+
+        const evento: EventoAnalitico = {
+          id_evento: idEvento,
+          demanda_id: parsed.demandaId,
+          projeto_id: demand?.projeto_id ?? null,
+          etapa_origem: EtapaOrigemEvidencia.QUALIDADE,
+          categoria: 'QUALIDADE',
+          tipo_evento: 'QUALIDADE_PROBLEMA_RESOLVIDO',
+          ocorrido_em: timestampResolucao,
+          executor: 'ANALISTA',
+          artefato_origem_tipo: 'PROBLEMA_QUALIDADE',
+          artefato_origem_id: problemaAtualizado.id,
+          payload: {
+            problemaId: problemaAtualizado.id,
+            titulo: problemaAtualizado.titulo,
+            tabelaAfetada: problemaAtualizado.tabela_afetada,
+            statusAnterior: problemaAtualizado.status !== parsed.novoStatus ? problemaAtualizado.status : 'ABERTO',
+            novoStatus: 'RESOLVIDO',
+            justificativa: parsed.justificativa,
+            atualizadoEm: timestampResolucao,
+          },
+          versao_contrato: '1.0',
+        };
+        await deps.processarEventoUseCase.execute(evento);
+      } catch {
+        // Falha isolada no motor de eventos
+      }
+    }
+
     revalidateQualityPaths(parsed.demandaId);
     return { success: true, data: problemaAtualizado };
   } catch (error: any) {
@@ -226,6 +330,43 @@ export async function runQualityDiagnosticAction(
       ativoDadosId: parsed.ativoDadosId,
       abaAlvoXlsx: parsed.abaAlvoXlsx ?? undefined,
     });
+
+    // Emissão Determinística de Evento Analítico se concluído sem falha (Subgate 3.5B.2)
+    if (resultado.diagnostico.status_execucao !== StatusExecucaoDiagnostico.FALHA) {
+      try {
+        const idEvento = `evt_diag_${resultado.diagnostico.id}`;
+        const timestampDiag = resultado.diagnostico.concluido_em || resultado.diagnostico.iniciado_em;
+        const demand = await deps.demandRepo.findById(parsed.demandaId);
+        const ativo = await deps.ativoDadosRepo.findById(parsed.ativoDadosId);
+
+        const evento: EventoAnalitico = {
+          id_evento: idEvento,
+          demanda_id: parsed.demandaId,
+          projeto_id: demand?.projeto_id ?? null,
+          etapa_origem: EtapaOrigemEvidencia.QUALIDADE,
+          categoria: 'QUALIDADE',
+          tipo_evento: 'QUALIDADE_DIAGNOSTICO_CONCLUIDO',
+          ocorrido_em: timestampDiag,
+          executor: 'SISTEMA_DETERMINISTICO',
+          artefato_origem_tipo: 'DIAGNOSTICO_QUALIDADE',
+          artefato_origem_id: resultado.diagnostico.id,
+          payload: {
+            diagnosticoId: resultado.diagnostico.id,
+            ativoDadosId: resultado.diagnostico.ativo_dados_id,
+            tabelaNome: ativo?.nome_arquivo || 'Ativo de Dados',
+            totalLinhasAvaliadas: resultado.diagnostico.total_linhas_avaliadas,
+            totalColunasAvaliadas: resultado.diagnostico.total_colunas_avaliadas,
+            totalProblemasDetectados: resultado.diagnostico.total_problemas_detectados,
+            totalVerificacoes: resultado.diagnostico.verificacoes_executadas.length,
+            duracaoMs: resultado.diagnostico.duracao_ms,
+          },
+          versao_contrato: '1.0',
+        };
+        await deps.processarEventoUseCase.execute(evento);
+      } catch {
+        // Falha isolada no motor de eventos
+      }
+    }
 
     revalidateQualityPaths(parsed.demandaId);
     return { success: true, data: resultado };
@@ -314,6 +455,38 @@ export async function registerManualProblemAction(
       totalLinhasAfetadas: parsed.totalLinhasAfetadas,
       percentualLinhasAfetadas: parsed.percentualLinhasAfetadas,
     });
+
+    // Emissão Determinística de Evento Analítico (Subgate 3.5B.2)
+    try {
+      const idEvento = `evt_man_prob_${problema.id}`;
+      const demand = await deps.demandRepo.findById(parsed.demandaId);
+
+      const evento: EventoAnalitico = {
+        id_evento: idEvento,
+        demanda_id: parsed.demandaId,
+        projeto_id: demand?.projeto_id ?? null,
+        etapa_origem: EtapaOrigemEvidencia.QUALIDADE,
+        categoria: 'QUALIDADE',
+        tipo_evento: 'QUALIDADE_ANOMALIA_MANUAL_REGISTRADA',
+        ocorrido_em: problema.criado_em,
+        executor: 'ANALISTA',
+        artefato_origem_tipo: 'PROBLEMA_QUALIDADE',
+        artefato_origem_id: problema.id,
+        payload: {
+          problemaId: problema.id,
+          titulo: problema.titulo,
+          descricao: problema.descricao,
+          tabelaAfetada: problema.tabela_afetada,
+          colunaAfetada: problema.coluna_afetada,
+          totalLinhasAfetadas: problema.total_linhas_afetadas,
+          percentualLinhasAfetadas: problema.percentual_linhas_afetadas,
+        },
+        versao_contrato: '1.0',
+      };
+      await deps.processarEventoUseCase.execute(evento);
+    } catch {
+      // Falha isolada no motor de eventos
+    }
 
     revalidateQualityPaths(parsed.demandaId);
     return { success: true, data: problema };
