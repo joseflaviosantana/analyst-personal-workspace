@@ -84,6 +84,19 @@ import { LinhagemAtivos } from '@/core/domain/entities/linhagem-ativos';
 import { AtivoDados } from '@/core/domain/entities/ativo-dados';
 import { ProblemaQualidade } from '@/core/domain/entities/problema-qualidade';
 
+import { SqliteEventoAnaliticoLogRepository } from '@/infrastructure/db/repositories/sqlite-evento-analitico-log-repository';
+import { SqliteEvidenciaAnaliticaRepository } from '@/infrastructure/db/repositories/sqlite-evidencia-analitica-repository';
+import {
+  RegistrarEvidenciaUseCase,
+  ProcessarEventoAnaliticoUseCase,
+} from '@/core/use-cases/evidence';
+import {
+  criarEvidenceEventEnginePadrao,
+  EventoAnalitico,
+} from '@/core/domain/evidence-events';
+import { EtapaOrigemEvidencia } from '@/core/domain/enums/etapa-origem-evidencia';
+import { PapelEntradaLinhagem } from '@/core/domain/enums/papel-entrada-linhagem';
+
 export type PreparationActionResult<T> =
   | { success: true; data: T }
   | { success: false; error: string };
@@ -98,6 +111,7 @@ export interface PreparationActionDeps {
   diagnosticosRepo: IDiagnosticosQualidadeRepository;
   problemasRepo: IProblemasQualidadeRepository;
   auditRepo: IAuditRepository;
+  processarEventoUseCase?: ProcessarEventoAnaliticoUseCase;
 }
 
 // Singletons para execução em produção no servidor Next.js
@@ -111,7 +125,19 @@ const defaultDiagnosticosRepo = new SqliteDiagnosticosQualidadeRepository();
 const defaultProblemasRepo = new SqliteProblemasQualidadeRepository();
 const defaultAuditRepo = new SqliteAuditRepository();
 
-function resolvePreparationDeps(customDeps?: Partial<PreparationActionDeps>): PreparationActionDeps {
+const defaultEventLogRepo = new SqliteEventoAnaliticoLogRepository();
+const defaultEvidenciaRepo = new SqliteEvidenciaAnaliticaRepository();
+const defaultRegistrarEvidenciaUseCase = new RegistrarEvidenciaUseCase(defaultEvidenciaRepo, defaultDemandRepo);
+const defaultEventEngine = criarEvidenceEventEnginePadrao();
+const defaultProcessarEventoUseCase = new ProcessarEventoAnaliticoUseCase(
+  defaultEventEngine,
+  defaultEventLogRepo,
+  defaultRegistrarEvidenciaUseCase
+);
+
+function resolvePreparationDeps(customDeps?: Partial<PreparationActionDeps>): PreparationActionDeps & {
+  processarEventoUseCase: ProcessarEventoAnaliticoUseCase;
+} {
   return {
     demandRepo: customDeps?.demandRepo ?? defaultDemandRepo,
     ativoDadosRepo: customDeps?.ativoDadosRepo ?? defaultAtivoDadosRepo,
@@ -122,6 +148,7 @@ function resolvePreparationDeps(customDeps?: Partial<PreparationActionDeps>): Pr
     diagnosticosRepo: customDeps?.diagnosticosRepo ?? defaultDiagnosticosRepo,
     problemasRepo: customDeps?.problemasRepo ?? defaultProblemasRepo,
     auditRepo: customDeps?.auditRepo ?? defaultAuditRepo,
+    processarEventoUseCase: customDeps?.processarEventoUseCase ?? defaultProcessarEventoUseCase,
   };
 }
 
@@ -265,6 +292,42 @@ export async function concluirReceitaPreparacaoAction(
       justificativa: validated.justificativa ?? undefined,
       autorTipo: validated.autor_tipo,
     });
+
+    // Emissão Determinística de Evento Analítico (Subgate 3.5B.3)
+    try {
+      const idEvento = `evt_prep_rec_${concluida.id}_${concluida.atualizado_em}`;
+      const demand = await deps.demandRepo.findById(concluida.demanda_id);
+      const etapas = await deps.etapaRepo.findByReceitaId(concluida.id);
+      const totalValidadas = etapas.filter((e) => e.status === 'VALIDADA').length;
+      const totalCanceladas = etapas.filter((e) => e.status === 'CANCELADA').length;
+
+      const evento: EventoAnalitico = {
+        id_evento: idEvento,
+        demanda_id: concluida.demanda_id,
+        projeto_id: demand?.projeto_id ?? null,
+        etapa_origem: EtapaOrigemEvidencia.PREPARACAO,
+        categoria: 'PREPARACAO',
+        tipo_evento: 'PREPARACAO_RECEITA_CONCLUIDA',
+        ocorrido_em: concluida.atualizado_em,
+        executor: 'ANALISTA',
+        artefato_origem_tipo: 'RECEITA_PREPARACAO',
+        artefato_origem_id: concluida.id,
+        payload: {
+          receitaId: concluida.id,
+          titulo: concluida.titulo,
+          totalEtapasValidadas: totalValidadas,
+          totalEtapasCanceladas: totalCanceladas,
+          justificativa: validated.justificativa ?? null,
+          concluidaEm: concluida.atualizado_em,
+          autorTipo: validated.autor_tipo,
+        },
+        versao_contrato: '1.0',
+      };
+      await deps.processarEventoUseCase.execute(evento);
+    } catch {
+      // Isolamento de falha no motor de eventos
+    }
+
     revalidatePreparationPaths(demandaId);
     return { success: true, data: concluida };
   } catch (error: any) {
@@ -465,6 +528,57 @@ export async function registrarAtivoDerivadoAction(
       deps.demandRepo
     );
     const result = await useCase.execute(validated);
+
+    // Emissão Determinística de Evento Analítico (Subgate 3.5B.3)
+    try {
+      const idEvento = `evt_prep_deriv_${result.ativo.id}`;
+      const demand = await deps.demandRepo.findById(validated.demanda_id);
+      const etapa = await deps.etapaRepo.findById(validated.etapa_id);
+
+      const fontePrincipal = validated.fontes_entrada.find(
+        (f) => f.papel === PapelEntradaLinhagem.FONTE_PRINCIPAL || f.papel === PapelEntradaLinhagem.ORIGEM_UNICA
+      ) ?? validated.fontes_entrada[0];
+      let ativoOrigemPrincipal = null;
+      if (fontePrincipal) {
+        ativoOrigemPrincipal = await deps.ativoDadosRepo.findById(fontePrincipal.ativo_origem_id);
+      }
+
+      const evento: EventoAnalitico = {
+        id_evento: idEvento,
+        demanda_id: validated.demanda_id,
+        projeto_id: demand?.projeto_id ?? null,
+        etapa_origem: EtapaOrigemEvidencia.PREPARACAO,
+        categoria: 'PREPARACAO',
+        tipo_evento: 'PREPARACAO_ATIVO_DERIVADO_REGISTRADO',
+        ocorrido_em: result.ativo.criado_em,
+        executor: 'ANALISTA',
+        artefato_origem_tipo: 'ATIVO_DADOS',
+        artefato_origem_id: result.ativo.id,
+        payload: {
+          ativoId: result.ativo.id,
+          nomeArquivo: result.ativo.nome_arquivo,
+          caminhoLocal: result.ativo.caminho_local,
+          formato: result.ativo.formato,
+          tamanhoBytes: result.ativo.tamanho_bytes,
+          totalLinhas: result.ativo.total_linhas,
+          totalColunas: result.ativo.total_colunas,
+          hashSha256: result.ativo.hash_sha256,
+          receitaId: validated.receita_id,
+          etapaId: validated.etapa_id,
+          tipoOperacao: etapa?.tipo_operacao ?? 'TRANSFORMACAO',
+          ferramentaNome: etapa?.ferramenta_nome ?? 'Power Query M',
+          fontesEntradaIds: validated.fontes_entrada.map((f) => f.ativo_origem_id),
+          linhasOrigemPrincipal: ativoOrigemPrincipal?.total_linhas ?? null,
+          colunasOrigemPrincipal: ativoOrigemPrincipal?.total_colunas ?? null,
+          bytesOrigemPrincipal: ativoOrigemPrincipal?.tamanho_bytes ?? null,
+        },
+        versao_contrato: '1.0',
+      };
+      await deps.processarEventoUseCase.execute(evento);
+    } catch {
+      // Isolamento de falha no motor de eventos
+    }
+
     revalidatePreparationPaths(validated.demanda_id);
     return { success: true, data: result };
   } catch (error: any) {
@@ -545,6 +659,45 @@ export async function validarTratamentoProblemaAction(
       problemaId: validated.problema_id,
       autorTipo: validated.autor_tipo,
     });
+
+    // Emissão Determinística de Evento Analítico quando resolvido empiricamente (Subgate 3.5B.3)
+    if (result.resolvido) {
+      try {
+        const idEvento = `evt_prep_trat_${result.problema.id}_${result.problema.atualizado_em}`;
+        const demand = await deps.demandRepo.findById(demandaId || result.problema.demanda_id);
+
+        const evento: EventoAnalitico = {
+          id_evento: idEvento,
+          demanda_id: result.problema.demanda_id,
+          projeto_id: demand?.projeto_id ?? null,
+          etapa_origem: EtapaOrigemEvidencia.PREPARACAO,
+          categoria: 'PREPARACAO',
+          tipo_evento: 'PREPARACAO_TRATAMENTO_VALIDADO',
+          ocorrido_em: result.problema.atualizado_em,
+          executor: 'SISTEMA_DETERMINISTICO',
+          artefato_origem_tipo: 'PROBLEMA_QUALIDADE',
+          artefato_origem_id: result.problema.id,
+          payload: {
+            problemaId: result.problema.id,
+            titulo: result.problema.titulo,
+            colunaAfetada: result.problema.coluna_afetada,
+            etapaId: result.etapaId,
+            ativoDerivadoId: result.ativoDerivadoId,
+            diagnosticoId: result.diagnosticoId,
+            motivo: result.motivo,
+            linhasAfetadasAntes: result.problema.total_linhas_afetadas ?? null,
+            linhasAfetadasDepois: 0,
+            percentualReducao: result.problema.total_linhas_afetadas ? 100 : null,
+            validadoEm: result.problema.atualizado_em,
+          },
+          versao_contrato: '1.0',
+        };
+        await deps.processarEventoUseCase.execute(evento);
+      } catch {
+        // Isolamento de falha no motor de eventos
+      }
+    }
+
     revalidatePreparationPaths(demandaId);
     return { success: true, data: result };
   } catch (error: any) {
@@ -610,6 +763,52 @@ export async function autorizarDatasetAnaliseAction(
       justificativa: validated.justificativa_autorizacao,
       autorTipo: 'HUMANO',
     });
+
+    // Emissão Determinística de Evento Analítico (Subgate 3.5B.3)
+    try {
+      const idEvento = `evt_prep_aut_${autorizacao.id}`;
+      const demand = await deps.demandRepo.findById(autorizacao.demanda_id);
+      const ativo = await deps.ativoDadosRepo.findById(autorizacao.ativo_dados_id);
+
+      let totalRestricoes = 0;
+      try {
+        const restricoes = JSON.parse(autorizacao.restricoes_aceitas_snapshot || '[]');
+        totalRestricoes = Array.isArray(restricoes) ? restricoes.length : 0;
+      } catch {
+        totalRestricoes = 0;
+      }
+
+      const evento: EventoAnalitico = {
+        id_evento: idEvento,
+        demanda_id: autorizacao.demanda_id,
+        projeto_id: demand?.projeto_id ?? null,
+        etapa_origem: EtapaOrigemEvidencia.PREPARACAO,
+        categoria: 'PREPARACAO',
+        tipo_evento: 'PREPARACAO_DATASET_HOMOLOGADO',
+        ocorrido_em: autorizacao.autorizado_em,
+        executor: 'ANALISTA',
+        artefato_origem_tipo: 'DATASET_AUTORIZADO',
+        artefato_origem_id: autorizacao.id,
+        payload: {
+          autorizacaoId: autorizacao.id,
+          ativoDadosId: autorizacao.ativo_dados_id,
+          nomeArquivo: ativo?.nome_arquivo ?? 'Ativo Homologado',
+          versaoRotulo: autorizacao.versao_rotulo,
+          hashSha256Snapshot: autorizacao.hash_sha256_snapshot,
+          diagnosticoId: autorizacao.diagnostico_qualidade_id,
+          receitaId: autorizacao.receita_preparacao_id,
+          justificativa: autorizacao.justificativa_autorizacao,
+          totalRestricoesAceitas: totalRestricoes,
+          autorTipo: 'HUMANO',
+          autorizadoEm: autorizacao.autorizado_em,
+        },
+        versao_contrato: '1.0',
+      };
+      await deps.processarEventoUseCase.execute(evento);
+    } catch {
+      // Isolamento de falha no motor de eventos
+    }
+
     revalidatePreparationPaths(validated.demanda_id);
     return { success: true, data: autorizacao };
   } catch (error: any) {

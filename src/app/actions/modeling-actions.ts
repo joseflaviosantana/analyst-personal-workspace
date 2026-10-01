@@ -71,6 +71,18 @@ import { MetricaAnalitica } from '@/core/domain/entities/metrica-analitica';
 import { ResultadoAvaliacaoConformidade } from '@/core/domain/rules/modeling-rules-evaluator';
 import { z } from 'zod';
 
+import { SqliteEventoAnaliticoLogRepository } from '@/infrastructure/db/repositories/sqlite-evento-analitico-log-repository';
+import { SqliteEvidenciaAnaliticaRepository } from '@/infrastructure/db/repositories/sqlite-evidencia-analitica-repository';
+import {
+  RegistrarEvidenciaUseCase,
+  ProcessarEventoAnaliticoUseCase,
+} from '@/core/use-cases/evidence';
+import {
+  criarEvidenceEventEnginePadrao,
+  EventoAnalitico,
+} from '@/core/domain/evidence-events';
+import { EtapaOrigemEvidencia } from '@/core/domain/enums/etapa-origem-evidencia';
+
 export type ModelingActionResult<T> =
   | { success: true; data: T }
   | { success: false; error: string };
@@ -85,6 +97,7 @@ export interface ModelingActionDeps {
   relacionamentoRepo: IRelacionamentoAnaliticoRepository;
   metricaRepo: IMetricaAnaliticaRepository;
   auditRepo: IAuditRepository;
+  processarEventoUseCase?: ProcessarEventoAnaliticoUseCase;
 }
 
 const defaultDemandRepo = new SqliteDemandRepository();
@@ -97,7 +110,19 @@ const defaultRelacionamentoRepo = new SqliteRelacionamentoAnaliticoRepository();
 const defaultMetricaRepo = new SqliteMetricaAnaliticaRepository();
 const defaultAuditRepo = new SqliteAuditRepository();
 
-function resolveModelingDeps(customDeps?: Partial<ModelingActionDeps>): ModelingActionDeps {
+const defaultEventLogRepo = new SqliteEventoAnaliticoLogRepository();
+const defaultEvidenciaRepo = new SqliteEvidenciaAnaliticaRepository();
+const defaultRegistrarEvidenciaUseCase = new RegistrarEvidenciaUseCase(defaultEvidenciaRepo, defaultDemandRepo);
+const defaultEventEngine = criarEvidenceEventEnginePadrao();
+const defaultProcessarEventoUseCase = new ProcessarEventoAnaliticoUseCase(
+  defaultEventEngine,
+  defaultEventLogRepo,
+  defaultRegistrarEvidenciaUseCase
+);
+
+function resolveModelingDeps(customDeps?: Partial<ModelingActionDeps>): ModelingActionDeps & {
+  processarEventoUseCase: ProcessarEventoAnaliticoUseCase;
+} {
   return {
     demandRepo: customDeps?.demandRepo ?? defaultDemandRepo,
     ativoDadosRepo: customDeps?.ativoDadosRepo ?? defaultAtivoDadosRepo,
@@ -108,6 +133,7 @@ function resolveModelingDeps(customDeps?: Partial<ModelingActionDeps>): Modeling
     relacionamentoRepo: customDeps?.relacionamentoRepo ?? defaultRelacionamentoRepo,
     metricaRepo: customDeps?.metricaRepo ?? defaultMetricaRepo,
     auditRepo: customDeps?.auditRepo ?? defaultAuditRepo,
+    processarEventoUseCase: customDeps?.processarEventoUseCase ?? defaultProcessarEventoUseCase,
   };
 }
 
@@ -321,6 +347,39 @@ export async function especificarDimensaoCalendarioAction(
     );
 
     const result = await useCase.execute(input as any);
+
+    // Emissão Determinística de Evento Analítico (Subgate 3.5B.3)
+    try {
+      const idEvento = `evt_mod_cal_${result.id}_${result.atualizado_em || result.criado_em}`;
+      const demand = await deps.demandRepo.findById(demandaId);
+
+      const evento: EventoAnalitico = {
+        id_evento: idEvento,
+        demanda_id: demandaId,
+        projeto_id: demand?.projeto_id ?? null,
+        etapa_origem: EtapaOrigemEvidencia.MODELAGEM,
+        categoria: 'MODELAGEM',
+        tipo_evento: 'MODELAGEM_CALENDARIO_ESPECIFICADO',
+        ocorrido_em: result.atualizado_em || result.criado_em,
+        executor: 'ANALISTA',
+        artefato_origem_tipo: 'ENTIDADE_ANALITICA',
+        artefato_origem_id: result.id,
+        payload: {
+          entidadeId: result.id,
+          modeloId: result.modelo_id,
+          nomeEntidade: result.nome,
+          dataInicio: (input as any).dataInicio ?? null,
+          dataFim: (input as any).dataFim ?? null,
+          totalAtributosGerados: result.atributos?.length ?? 0,
+          especificadoEm: result.atualizado_em || result.criado_em,
+        },
+        versao_contrato: '1.0',
+      };
+      await deps.processarEventoUseCase.execute(evento);
+    } catch {
+      // Isolamento de falha no motor de eventos
+    }
+
     revalidateModelingPaths(demandaId);
     return { success: true, data: result };
   } catch (error: any) {
@@ -350,6 +409,46 @@ export async function adicionarRelacionamentoAnaliticoAction(
     );
 
     const result = await useCase.execute(input as any);
+
+    // Emissão Determinística de Evento Analítico (Subgate 3.5B.3)
+    try {
+      const idEvento = `evt_mod_rel_${result.id}`;
+      const demand = await deps.demandRepo.findById(demandaId);
+      const entidadeOrigem = await deps.entidadeRepo.findById(result.entidade_origem_id);
+      const entidadeDestino = await deps.entidadeRepo.findById(result.entidade_destino_id);
+      const atributoOrigem = await deps.atributoRepo.findById(result.atributo_origem_id);
+      const atributoDestino = await deps.atributoRepo.findById(result.atributo_destino_id);
+
+      const evento: EventoAnalitico = {
+        id_evento: idEvento,
+        demanda_id: demandaId,
+        projeto_id: demand?.projeto_id ?? null,
+        etapa_origem: EtapaOrigemEvidencia.MODELAGEM,
+        categoria: 'MODELAGEM',
+        tipo_evento: 'MODELAGEM_RELACIONAMENTO_CRIADO',
+        ocorrido_em: result.criado_em,
+        executor: 'ANALISTA',
+        artefato_origem_tipo: 'RELACIONAMENTO_ANALITICO',
+        artefato_origem_id: result.id,
+        payload: {
+          relacionamentoId: result.id,
+          modeloId: result.modelo_id,
+          entidadeOrigemNome: entidadeOrigem?.nome ?? result.entidade_origem_id,
+          atributoOrigemNome: atributoOrigem?.nome_amigavel ?? atributoOrigem?.nome_original ?? result.atributo_origem_id,
+          entidadeDestinoNome: entidadeDestino?.nome ?? result.entidade_destino_id,
+          atributoDestinoNome: atributoDestino?.nome_amigavel ?? atributoDestino?.nome_original ?? result.atributo_destino_id,
+          tipoRelacionamento: result.tipo_relacionamento,
+          direcaoFiltro: result.direcao_filtro,
+          justificativa: result.justificativa ?? null,
+          criadoEm: result.criado_em,
+        },
+        versao_contrato: '1.0',
+      };
+      await deps.processarEventoUseCase.execute(evento);
+    } catch {
+      // Isolamento de falha no motor de eventos
+    }
+
     revalidateModelingPaths(demandaId);
     return { success: true, data: result };
   } catch (error: any) {
@@ -401,6 +500,42 @@ export async function cadastrarMetricaAnaliticaAction(
     );
 
     const result = await useCase.execute(input as any);
+
+    // Emissão Determinística de Evento Analítico (Subgate 3.5B.3)
+    try {
+      const idEvento = `evt_mod_met_${result.id}`;
+      const demand = await deps.demandRepo.findById(demandaId);
+
+      const evento: EventoAnalitico = {
+        id_evento: idEvento,
+        demanda_id: demandaId,
+        projeto_id: demand?.projeto_id ?? null,
+        etapa_origem: EtapaOrigemEvidencia.MODELAGEM,
+        categoria: 'MODELAGEM',
+        tipo_evento: 'MODELAGEM_METRICA_CADASTRADA',
+        ocorrido_em: result.criado_em,
+        executor: 'ANALISTA',
+        artefato_origem_tipo: 'METRICA_ANALITICA',
+        artefato_origem_id: result.id,
+        payload: {
+          metricaId: result.id,
+          modeloId: result.modelo_id,
+          nome: result.nome,
+          tipoAgregacao: result.tipo_agregacao,
+          tipoAditividade: result.tipo_aditividade,
+          formulaDeclarativa: result.formula_declarativa,
+          unidadeMedida: result.unidade_medida,
+          perguntaNegocioAssociada: result.pergunta_negocio_associada ?? null,
+          objetivoNegocioAssociado: result.objetivo_negocio_associado ?? null,
+          cadastradaEm: result.criado_em,
+        },
+        versao_contrato: '1.0',
+      };
+      await deps.processarEventoUseCase.execute(evento);
+    } catch {
+      // Isolamento de falha no motor de eventos
+    }
+
     revalidateModelingPaths(demandaId);
     return { success: true, data: result };
   } catch (error: any) {
@@ -524,6 +659,45 @@ export async function homologarModeloAnaliticoAction(
     );
 
     const result = await useCase.execute(validated);
+
+    // Emissão Determinística de Evento Analítico (Subgate 3.5B.3)
+    try {
+      const timestampHomologacao = result.homologado_em || result.atualizado_em;
+      const idEvento = `evt_mod_homol_${result.id}_${timestampHomologacao}`;
+      const demand = await deps.demandRepo.findById(result.demanda_id);
+
+      const totalAlertas = validated.justificativaAlertas ? 1 : 0;
+      const totalRecomendacoes = 0;
+
+      const evento: EventoAnalitico = {
+        id_evento: idEvento,
+        demanda_id: result.demanda_id,
+        projeto_id: demand?.projeto_id ?? null,
+        etapa_origem: EtapaOrigemEvidencia.MODELAGEM,
+        categoria: 'MODELAGEM',
+        tipo_evento: 'MODELAGEM_MODELO_HOMOLOGADO',
+        ocorrido_em: timestampHomologacao,
+        executor: 'ANALISTA',
+        artefato_origem_tipo: 'MODELO_ANALITICO',
+        artefato_origem_id: result.id,
+        payload: {
+          modeloId: result.id,
+          nomeModelo: result.nome,
+          tipoArquitetura: result.tipo_arquitetura,
+          datasetAutorizadoId: result.dataset_autorizado_id,
+          homologadoPor: result.homologado_por || validated.homologadoPor || 'ANALISTA',
+          justificativa: result.justificativa_homologacao || validated.justificativa,
+          totalAlertasReconhecidos: totalAlertas,
+          totalRecomendacoes: totalRecomendacoes,
+          homologadoEm: timestampHomologacao,
+        },
+        versao_contrato: '1.0',
+      };
+      await deps.processarEventoUseCase.execute(evento);
+    } catch {
+      // Isolamento de falha no motor de eventos
+    }
+
     revalidateModelingPaths(demandaId);
     return { success: true, data: result };
   } catch (error: any) {

@@ -15,4 +15,6 @@ export * from './default-strategies/evento-tecnico-ignorado-strategy';
 export * from './default-strategies/dados-ativo-strategy';
 export * from './default-strategies/qualidade-diagnostico-strategy';
 export * from './default-strategies/qualidade-problema-strategy';
+export * from './default-strategies/preparacao-strategy';
+export * from './default-strategies/modelagem-strategy';
 export * from './engine-factory';

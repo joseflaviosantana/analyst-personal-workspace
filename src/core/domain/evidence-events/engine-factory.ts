@@ -11,6 +11,8 @@ import { EventoTecnicoIgnoradoStrategy } from './default-strategies/evento-tecni
 import { DadosAtivoStrategy } from './default-strategies/dados-ativo-strategy';
 import { QualidadeDiagnosticoStrategy } from './default-strategies/qualidade-diagnostico-strategy';
 import { QualidadeProblemaStrategy } from './default-strategies/qualidade-problema-strategy';
+import { PreparacaoStrategy } from './default-strategies/preparacao-strategy';
+import { ModelagemStrategy } from './default-strategies/modelagem-strategy';
 
 export function criarEvidenceEventEnginePadrao(): EvidenceEventEngine {
   return new EvidenceEventEngine([
@@ -20,5 +22,7 @@ export function criarEvidenceEventEnginePadrao(): EvidenceEventEngine {
     new DadosAtivoStrategy(),
     new QualidadeDiagnosticoStrategy(),
     new QualidadeProblemaStrategy(),
+    new PreparacaoStrategy(),
+    new ModelagemStrategy(),
   ]);
 }
