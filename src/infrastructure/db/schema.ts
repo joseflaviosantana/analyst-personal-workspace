@@ -825,6 +825,69 @@ export const perguntasClarificacao = sqliteTable(
   })
 );
 
+/**
+ * Estudos de Caso de Portfólio (V1 — Subunidade 3.9 / Bloco 7 — Portfólio Sanitizado)
+ * Armazena a versão candidata e a versão homologada (APROV-10) de estudo de caso STAR.
+ * Cardinalidade: Demanda 1 → 1 Estudo de Caso.
+ */
+export const estudosCasoPortfolio = sqliteTable(
+  'estudos_caso_portfolio',
+  {
+    id: text('id').primaryKey(),
+    demanda_id: text('demanda_id')
+      .notNull()
+      .unique()
+      .references(() => demandas.id, { onDelete: 'cascade' }),
+    projeto_id: text('projeto_id')
+      .references(() => projetos.id, { onDelete: 'set null' }),
+    titulo: text('titulo').notNull(),
+    problema_negocio: text('problema_negocio').notNull(),
+    processo_preparacao: text('processo_preparacao').notNull(),
+    modelagem_decisoes: text('modelagem_decisoes').notNull(),
+    validacao_resultados: text('validacao_resultados').notNull(),
+    competencias_demonstradas: text('competencias_demonstradas').notNull().default('[]'),
+    ferramentas_utilizadas: text('ferramentas_utilizadas').notNull().default('[]'),
+    metricas_fatos: text('metricas_fatos').notNull().default('[]'),
+    tecnicas_sanitizacao: text('tecnicas_sanitizacao').notNull().default('[]'),
+    checklist_sanitizacao: text('checklist_sanitizacao').notNull().default('{}'),
+    status: text('status').notNull().default('RASCUNHO'),
+    homologado_em: text('homologado_em'),
+    homologado_por: text('homologado_por'),
+    versao: integer('versao').notNull().default(1),
+    criado_em: text('criado_em').notNull(),
+    atualizado_em: text('atualizado_em').notNull(),
+  },
+  (table) => ({
+    demandaIdIdx: index('idx_estudos_caso_demanda_id').on(table.demanda_id),
+    statusIdx: index('idx_estudos_caso_status').on(table.status),
+  })
+);
+
+/**
+ * Ativos de Aprendizado (V1 — Subunidade 3.9 / Bloco 7 — Memória Operacional / ADR-002)
+ * Curadoria de snippets DAX, fórmulas Power Query M e padrões reutilizáveis derivados da demanda.
+ * Cardinalidade: Demanda 1 → N Ativos de Aprendizado.
+ */
+export const ativosAprendizado = sqliteTable(
+  'ativos_aprendizado',
+  {
+    id: text('id').primaryKey(),
+    demanda_id: text('demanda_id')
+      .references(() => demandas.id, { onDelete: 'set null' }),
+    titulo: text('titulo').notNull(),
+    categoria: text('categoria').notNull(),
+    descricao: text('descricao'),
+    procedimento_padrao: text('procedimento_padrao').notNull(),
+    contexto_aplicacao: text('contexto_aplicacao'),
+    tags: text('tags').notNull().default('[]'),
+    criado_em: text('criado_em').notNull(),
+    atualizado_em: text('atualizado_em').notNull(),
+  },
+  (table) => ({
+    demandaIdIdx: index('idx_ativos_aprendizado_demanda_id').on(table.demanda_id),
+    categoriaIdx: index('idx_ativos_aprendizado_categoria').on(table.categoria),
+  })
+);
 
 /**
  * Relacionamentos declarativos Drizzle ORM
@@ -833,6 +896,7 @@ export const projetosRelations = relations(projetos, ({ many }) => ({
   demandas: many(demandas),
   evidencias: many(evidenciasAnaliticas),
   eventosLog: many(eventosAnaliticosLog),
+  estudosCaso: many(estudosCasoPortfolio),
 }));
 
 export const demandasRelations = relations(demandas, ({ one, many }) => ({
@@ -855,6 +919,8 @@ export const demandasRelations = relations(demandas, ({ one, many }) => ({
   perguntas: many(perguntasClarificacao),
   evidencias: many(evidenciasAnaliticas),
   eventosLog: many(eventosAnaliticosLog),
+  estudoCaso: one(estudosCasoPortfolio),
+  ativosAprendizado: many(ativosAprendizado),
 }));
 
 export const trilhaAuditoriaRelations = relations(trilhaAuditoria, ({ one }) => ({
@@ -1177,5 +1243,23 @@ export const perguntasClarificacaoRelations = relations(perguntasClarificacao, (
   requisito: one(requisitosDemanda, {
     fields: [perguntasClarificacao.requisito_id],
     references: [requisitosDemanda.id],
+  }),
+}));
+
+export const estudosCasoPortfolioRelations = relations(estudosCasoPortfolio, ({ one }) => ({
+  demanda: one(demandas, {
+    fields: [estudosCasoPortfolio.demanda_id],
+    references: [demandas.id],
+  }),
+  projeto: one(projetos, {
+    fields: [estudosCasoPortfolio.projeto_id],
+    references: [projetos.id],
+  }),
+}));
+
+export const ativosAprendizadoRelations = relations(ativosAprendizado, ({ one }) => ({
+  demanda: one(demandas, {
+    fields: [ativosAprendizado.demanda_id],
+    references: [demandas.id],
   }),
 }));

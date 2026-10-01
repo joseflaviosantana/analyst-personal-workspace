@@ -51,6 +51,7 @@ import { TabDashboard } from '@/components/demands/TabDashboard';
 import { TabEvidence } from '@/components/demands/TabEvidence';
 import { TabValidation } from '@/components/demands/TabValidation';
 import { TabDeliverables } from '@/components/demands/TabDeliverables';
+import { TabDossier } from '@/components/demands/TabDossier';
 
 interface DemandWorkspaceViewProps {
   demand: DemandaComProjeto;
@@ -146,7 +147,7 @@ export function DemandWorkspaceView({
     { id: 'findings', label: '8. Evidências', ready: true },
     { id: 'validation', label: '9. Validação', ready: true },
     { id: 'deliverables', label: '10. Entregáveis', ready: true },
-    { id: 'dossier', label: '11. Dossiê & Portfólio', ready: false },
+    { id: 'dossier', label: '11. Dossiê & Portfólio', ready: true },
   ];
 
   return (
@@ -427,6 +428,8 @@ export function DemandWorkspaceView({
         <TabValidation demand={demand} initialAssets={initialAssets} />
       ) : activeTab === 'deliverables' || activeTab === 'entregaveis' ? (
         <TabDeliverables demand={demand} />
+      ) : activeTab === 'dossier' || activeTab === 'portfolio' ? (
+        <TabDossier demand={demand} />
       ) : (
         /* Áreas Futuras da UX indicadas com honestidade técnica */
         <Card className="p-12 text-center" data-testid="tab-future-placeholder">
