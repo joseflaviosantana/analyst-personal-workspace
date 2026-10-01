@@ -19,8 +19,8 @@ export function DemandTabsNav({ demandId, activeTab }: DemandTabsNavProps) {
     { id: 'planning', label: '6. Planejamento & KPIs', active: activeTab === 'planning', ready: false },
     { id: 'powerbi', label: '7. Power BI & DAX', active: activeTab === 'powerbi', ready: false },
     { id: 'findings', label: '8. Evidências', active: activeTab === 'findings', ready: false },
-    { id: 'validation', label: '9. Validação', active: activeTab === 'validation', ready: false },
-    { id: 'deliverables', label: '10. Entregáveis', active: activeTab === 'deliverables', ready: false },
+    { id: 'validation', label: '9. Validação', active: activeTab === 'validation', ready: true },
+    { id: 'deliverables', label: '10. Entregáveis', active: activeTab === 'deliverables', ready: true },
     { id: 'dossier', label: '11. Dossiê & Portfólio', active: activeTab === 'dossier', ready: false },
   ];
 

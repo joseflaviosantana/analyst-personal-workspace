@@ -15,6 +15,7 @@ import { PreparacaoStrategy } from './default-strategies/preparacao-strategy';
 import { ModelagemStrategy } from './default-strategies/modelagem-strategy';
 import { DashboardStrategy } from './default-strategies/dashboard-strategy';
 import { ValidacaoStrategy } from './default-strategies/validacao-strategy';
+import { EntregaStrategy } from './default-strategies/entrega-strategy';
 
 export function criarEvidenceEventEnginePadrao(): EvidenceEventEngine {
   return new EvidenceEventEngine([
@@ -28,5 +29,6 @@ export function criarEvidenceEventEnginePadrao(): EvidenceEventEngine {
     new ModelagemStrategy(),
     new DashboardStrategy(),
     new ValidacaoStrategy(),
+    new EntregaStrategy(),
   ]);
 }

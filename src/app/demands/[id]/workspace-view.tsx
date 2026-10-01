@@ -47,6 +47,7 @@ import { TabModeling } from '@/components/demands/TabModeling';
 import { TabDashboard } from '@/components/demands/TabDashboard';
 import { TabEvidence } from '@/components/demands/TabEvidence';
 import { TabValidation } from '@/components/demands/TabValidation';
+import { TabDeliverables } from '@/components/demands/TabDeliverables';
 
 interface DemandWorkspaceViewProps {
   demand: DemandaComProjeto;
@@ -393,6 +394,8 @@ export function DemandWorkspaceView({
         <TabEvidence demand={demand} initialAssets={initialAssets} />
       ) : activeTab === 'validation' || activeTab === 'validacao' ? (
         <TabValidation demand={demand} initialAssets={initialAssets} />
+      ) : activeTab === 'deliverables' || activeTab === 'entregaveis' ? (
+        <TabDeliverables demand={demand} />
       ) : (
         /* Áreas Futuras da UX indicadas com honestidade técnica */
         <Card className="p-12 text-center" data-testid="tab-future-placeholder">
