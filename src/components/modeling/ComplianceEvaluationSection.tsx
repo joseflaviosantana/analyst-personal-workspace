@@ -46,7 +46,7 @@ export function ComplianceEvaluationSection({
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-blue-400" />
             <h3 className="text-sm font-semibold text-white">
-              Avaliação Determinística de Conformidade (Regras M-01 a M-10)
+              Avaliação Determinística de Conformidade (Regras M-01 a M-11)
             </h3>
           </div>
           <p className="text-xs text-slate-400 mt-0.5">
@@ -113,7 +113,7 @@ export function ComplianceEvaluationSection({
             Conformidade Integral — Zero Problemas Detectados
           </p>
           <p className="text-xs text-emerald-300/80 max-w-md mx-auto">
-            O modelo analítico atende plenamente a todas as regras determinísticas (M-01 a M-10) e está apto para homologação.
+            O modelo analítico atende plenamente a todas as regras determinísticas (M-01 a M-11) e está apto para homologação.
           </p>
         </div>
       ) : (

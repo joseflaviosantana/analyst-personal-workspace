@@ -17,10 +17,15 @@ import { Card } from '@/components/ui/Card';
 import { ModeloAnaliticoCompleto } from '@/core/domain/entities/modelo-analitico';
 import { ProntidaoModeloOutput } from '@/core/use-cases/modeling';
 import { StatusModeloAnalitico } from '@/core/domain/enums/status-modelo-analitico';
+import {
+  EstadoDemanda,
+  normalizarEstadoDemanda,
+} from '@/core/domain/enums/estado-demanda';
 
 interface HomologationGovernancePanelProps {
   modelo: ModeloAnaliticoCompleto;
   prontidao: ProntidaoModeloOutput | null;
+  estadoDemanda?: EstadoDemanda | string;
   onOpenHomologateModal: () => void;
   onOpenRevokeModal: () => void;
   onAdvanceDemand?: () => void;
@@ -30,6 +35,7 @@ interface HomologationGovernancePanelProps {
 export function HomologationGovernancePanel({
   modelo,
   prontidao,
+  estadoDemanda,
   onOpenHomologateModal,
   onOpenRevokeModal,
   onAdvanceDemand,
@@ -39,6 +45,11 @@ export function HomologationGovernancePanel({
   const isRevogado = modelo.status === StatusModeloAnalitico.REVOGADO;
   const temAlteracaoPosterior = prontidao?.temAlteracaoPosteriorAHomologacao ?? false;
   const isVigente = isHomologado && !temAlteracaoPosterior && !isRevogado && prontidao?.homologacaoVigenteValida;
+
+  const estadoNormalizado = estadoDemanda
+    ? normalizarEstadoDemanda(estadoDemanda)
+    : EstadoDemanda.EM_MODELAGEM_E_ANALISE;
+  const isEmModelagem = estadoNormalizado === EstadoDemanda.EM_MODELAGEM_E_ANALISE;
 
   const prontoParaHomologacao = prontidao?.prontoParaHomologacao ?? false;
   const bloqueios = prontidao?.motivosBloqueio ?? [];
@@ -72,7 +83,7 @@ export function HomologationGovernancePanel({
                   <span>Revogar Homologação</span>
                 </button>
 
-                {onAdvanceDemand && (
+                {onAdvanceDemand && isEmModelagem && (
                   <button
                     type="button"
                     onClick={onAdvanceDemand}

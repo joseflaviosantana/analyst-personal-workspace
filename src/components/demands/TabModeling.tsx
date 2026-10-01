@@ -32,6 +32,8 @@ import {
 import { obterDatasetAutorizadoVigenteAction } from '@/app/actions/preparation-actions';
 import { advanceDemandAction } from '@/app/actions/workflow-actions';
 
+import { resolveCopilotMessages } from '@/core/use-cases/copilot';
+import { CopilotStickyDock } from '@/components/copilot';
 import { ModelingNextActionBanner } from '@/components/modeling/ModelingNextActionBanner';
 import { ModelHeaderCard } from '@/components/modeling/ModelHeaderCard';
 import { ModelStructureView } from '@/components/modeling/ModelStructureView';
@@ -309,10 +311,13 @@ export function TabModeling({ demand, initialAssets = [] }: TabModelingProps) {
 
       {/* [1] Copiloto Proativo Explicável da Modelagem */}
       <ModelingNextActionBanner
+        demandaId={demand.id}
+        estadoDemanda={demand.estado}
         hasDatasetAutorizado={Boolean(datasetAutorizado && datasetAutorizado.status === 'VIGENTE')}
         datasetAutorizado={datasetAutorizado}
         modelo={modeloAtivo}
         prontidao={prontidao}
+        conformidade={conformidade}
         isReadOnly={isReadOnly}
         onOpenCreateModel={() => setCreateModelModalOpen(true)}
         onOpenAddEntity={() => setAddEntityModalOpen(true)}
@@ -344,6 +349,7 @@ export function TabModeling({ demand, initialAssets = [] }: TabModelingProps) {
         <HomologationGovernancePanel
           modelo={modeloAtivo}
           prontidao={prontidao}
+          estadoDemanda={demand.estado}
           onOpenHomologateModal={() => setHomologateModalOpen(true)}
           onOpenRevokeModal={() => setRevokeModalOpen(true)}
           onAdvanceDemand={handleAdvanceDemand}
@@ -392,7 +398,7 @@ export function TabModeling({ demand, initialAssets = [] }: TabModelingProps) {
         />
       )}
 
-      {/* [8] Avaliação Determinística de Conformidade (Regras M-01 a M-10) */}
+      {/* [8] Avaliação Determinística de Conformidade (Regras M-01 a M-11) */}
       {modeloAtivo && (
         <ComplianceEvaluationSection
           conformidade={conformidade}
@@ -528,6 +534,40 @@ export function TabModeling({ demand, initialAssets = [] }: TabModelingProps) {
           />
         </>
       )}
+
+      {/* [9] Dock Permanente de Acompanhamento do Copiloto durante Rolagem */}
+      <CopilotStickyDock
+        orientacao={resolveCopilotMessages({
+          demandaId: demand.id,
+          estadoDemanda: demand.estado,
+          hasDatasetAutorizado: Boolean(datasetAutorizado && datasetAutorizado.status === 'VIGENTE'),
+          datasetAutorizado,
+          modelo: modeloAtivo,
+          prontidao,
+          resultadoConformidade: conformidade,
+          isReadOnly,
+        })}
+        targetElementId="copilot-main-panel"
+        isReadOnly={isReadOnly}
+        actionButtonLabel="Executar Ação"
+        onExecuteAction={() => {
+          if (!modeloAtivo) {
+            setCreateModelModalOpen(true);
+          } else if (prontidao?.motivosBloqueio && prontidao.motivosBloqueio.length > 0) {
+            scrollToCompliance();
+          } else if (!modeloAtivo.entidades.some((e) => e.tipo === 'FATO')) {
+            setAddEntityModalOpen(true);
+          } else if (modeloAtivo.metricas.length === 0) {
+            setCreateMetricModalOpen(true);
+          } else if (prontidao?.prontoParaHomologacao) {
+            setHomologateModalOpen(true);
+          } else if (modeloAtivo.status === 'HOMOLOGADO' && prontidao?.homologacaoVigenteValida) {
+            handleAdvanceDemand();
+          } else {
+            scrollToCompliance();
+          }
+        }}
+      />
     </div>
   );
 }

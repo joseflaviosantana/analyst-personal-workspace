@@ -178,11 +178,50 @@ test.describe('E2E: Jornada F — Interface Operacional da Modelagem Analítica,
     await expect(page.getByTestId('specify-calendar-modal')).not.toBeVisible();
     await expect(page.getByTestId('stat-total-dimensions')).toHaveText('1');
 
+    // 7.4 Verificação da Regra M-11: Dimensão criada sem relacionamento gera ALERTA_CRITICO determinístico
+    await page.getByTestId('btn-reevaluate-compliance').click();
+    await expect(page.getByTestId('badge-count-critical-alerts')).toContainText(/1 Alerta/i);
+    await expect(page.getByTestId('diagnostic-card-M-11')).toBeVisible();
+    await expect(page.getByTestId('diagnostic-card-M-11')).toContainText(/DimCalendario/i);
+
+    // 7.5 Estabelecer Relacionamento Analítico via UI: Fato Vendas -> DimCalendario
+    await page.getByTestId('btn-open-add-relationship').click();
+    await expect(page.getByTestId('add-relationship-modal')).toBeVisible();
+
+    const sourceEntitySelect = page.getByTestId('select-rel-source-entity');
+    const sourceEntOptions = await sourceEntitySelect.locator('option').allInnerTexts();
+    const factEntOpt = sourceEntOptions.find((o) => /Fato/i.test(o)) ?? sourceEntOptions[0];
+    await sourceEntitySelect.selectOption({ label: factEntOpt });
+
+    const targetEntitySelect = page.getByTestId('select-rel-target-entity');
+    const targetEntOptions = await targetEntitySelect.locator('option').allInnerTexts();
+    const calEntOpt = targetEntOptions.find((o) => /DimCalendario/i.test(o)) ?? targetEntOptions[0];
+    await targetEntitySelect.selectOption({ label: calEntOpt });
+
+    const sourceAttrSelect = page.getByTestId('select-rel-source-attr');
+    const sourceOptions = await sourceAttrSelect.locator('option').allInnerTexts();
+    const dateOption = sourceOptions.find((opt) => /data/i.test(opt));
+    if (dateOption) {
+      await sourceAttrSelect.selectOption({ label: dateOption });
+    }
+
+    const targetAttrSelect = page.getByTestId('select-rel-target-attr');
+    const targetOptions = await targetAttrSelect.locator('option').allInnerTexts();
+    const targetDateOption = targetOptions.find((opt) => /data/i.test(opt));
+    if (targetDateOption) {
+      await targetAttrSelect.selectOption({ label: targetDateOption });
+    }
+
+    await page.getByTestId('btn-submit-add-relationship').click();
+    await expect(page.getByTestId('add-relationship-modal')).not.toBeVisible();
+    await expect(page.getByTestId('stat-total-relationships')).toHaveText('1');
+
     // 8. Reavaliação de Conformidade & Prontidão
     await page.getByTestId('btn-reevaluate-compliance').click();
 
-    // Comprova que os bloqueios impeditivos foram eliminados
+    // Comprova que tanto os bloqueios impeditivos quanto os alertas críticos de conectividade foram eliminados
     await expect(page.getByTestId('badge-count-blocks')).toHaveText(/0 Bloqueio/i);
+    await expect(page.getByTestId('badge-count-critical-alerts')).toHaveText(/0 Alerta/i);
     await expect(page.getByTestId('btn-open-homologate-model')).toBeEnabled();
 
     // 9. Homologação Humana Formal (Gate de Governança 3.6C / 3.6D)
@@ -234,5 +273,18 @@ test.describe('E2E: Jornada F — Interface Operacional da Modelagem Analítica,
 
     // Comprova transição factualmente aceita e consumada pelo WorkflowEngine
     await expect(stateBadge).toHaveText(/Em Validação/i);
+
+    // 12. Validação Gate 2B.2: Ao retornar para a Modelagem já em "Em Validação", o CTA de avanço NÃO deve ser reexibido
+    await tabModelingNav.click();
+    await expect(page.getByTestId('badge-model-homologated-vigente')).toBeVisible();
+    await expect(page.getByTestId('btn-advance-from-panel')).not.toBeVisible();
+    await expect(page.getByTestId('btn-open-revoke-homologation')).toBeVisible();
+
+    // 13. Validação Gate 2B.2: Dicionário Pedagógico no Copiloto exibe dica específica do conceito ativo
+    const btnConceptCalendar = page.getByTestId('btn-concept-dimensao-calendario');
+    if (await btnConceptCalendar.isVisible()) {
+      await btnConceptCalendar.click();
+      await expect(page.getByTestId('copilot-concept-tip')).toContainText(/ordenação de nomes de meses/i);
+    }
   });
 });

@@ -1,6 +1,8 @@
 import { ModeloAnaliticoCompleto } from "@/core/domain/entities/modelo-analitico";
+import { EntidadeAnalitica } from "@/core/domain/entities/entidade-analitica";
 import { DatasetAutorizadoAnalise } from "@/core/domain/entities/dataset-autorizado-analise";
 import { StatusAutorizacaoDataset } from "@/core/domain/enums/status-autorizacao-dataset";
+import { TipoArquiteturaModelo } from "@/core/domain/enums/tipo-arquitetura-modelo";
 import { TipoEntidadeAnalitica } from "@/core/domain/enums/tipo-entidade-analitica";
 import { PapelEntidadeAnalitica } from "@/core/domain/enums/papel-entidade-analitica";
 import { PapelAtributoAnalitico } from "@/core/domain/enums/papel-atributo-analitico";
@@ -14,7 +16,7 @@ import { UnidadeMedidaMetrica } from "@/core/domain/enums/unidade-medida-metrica
 export type SeveridadeRegraModelagem = "BLOQUEIO" | "ALERTA_CRITICO" | "RECOMENDACAO";
 
 export interface DiagnosticoRegraModelagem {
-  codigo_regra: "M-01" | "M-02" | "M-03" | "M-04" | "M-05" | "M-06" | "M-07" | "M-08" | "M-09" | "M-10";
+  codigo_regra: "M-01" | "M-02" | "M-03" | "M-04" | "M-05" | "M-06" | "M-07" | "M-08" | "M-09" | "M-10" | "M-11";
   severidade: SeveridadeRegraModelagem;
   titulo: string;
   deteccao: string;
@@ -74,6 +76,9 @@ export class ModelingRulesEvaluator {
 
     // M-10 — Descrição semântica (RECOMENDACAO)
     this.avaliarM10(modelo, diagnosticos);
+
+    // M-11 — Integridade de conectividade dimensional (ALERTA_CRITICO)
+    this.avaliarM11(modelo, diagnosticos);
 
     const totalBloqueios = diagnosticos.filter((d) => d.severidade === "BLOQUEIO").length;
     const totalAlertas = diagnosticos.filter((d) => d.severidade === "ALERTA_CRITICO").length;
@@ -401,5 +406,120 @@ export class ModelingRulesEvaluator {
         }
       }
     }
+  }
+
+  private static avaliarM11(
+    modelo: ModeloAnaliticoCompleto,
+    diagnosticos: DiagnosticoRegraModelagem[]
+  ): void {
+    // 1. Se a arquitetura for TABELA_UNICA, não há exigência de relacionamentos nem dimensões
+    if (modelo.tipo_arquitetura === TipoArquiteturaModelo.TABELA_UNICA) {
+      return;
+    }
+
+    // 2. Extrair entidades Fato e Dimensões
+    const fatos = modelo.entidades.filter((e) => e.tipo === TipoEntidadeAnalitica.FATO);
+    const dimensoes = modelo.entidades.filter((e) => e.tipo === TipoEntidadeAnalitica.DIMENSAO);
+
+    // Se não há dimensões no modelo, não há dimensões órfãs a reportar
+    if (dimensoes.length === 0) {
+      return;
+    }
+
+    const fatoIds = new Set(fatos.map((f) => f.id));
+    const relacionamentosAtivos = (modelo.relacionamentos ?? []).filter((r) => r.ativo !== false);
+
+    // Se não há nenhuma Fato cadastrada, dimensões não possuem onde se ancorar
+    if (fatoIds.size === 0) {
+      for (const dim of dimensoes) {
+        diagnosticos.push(this.criarDiagnosticoM11(modelo, dim));
+      }
+      return;
+    }
+
+    // 3. Validação topológica conforme a arquitetura declarada
+    if (modelo.tipo_arquitetura === TipoArquiteturaModelo.SNOWFLAKE) {
+      // SNOWFLAKE: Permite conectividade indireta via caminho relacional até uma Fato.
+      // Construir grafo não-direcionado de relacionamentos ativos entre entidades.
+      const adjacencias = new Map<string, Set<string>>();
+
+      for (const ent of modelo.entidades) {
+        adjacencias.set(ent.id, new Set<string>());
+      }
+
+      for (const rel of relacionamentosAtivos) {
+        if (adjacencias.has(rel.entidade_origem_id) && adjacencias.has(rel.entidade_destino_id)) {
+          adjacencias.get(rel.entidade_origem_id)!.add(rel.entidade_destino_id);
+          adjacencias.get(rel.entidade_destino_id)!.add(rel.entidade_origem_id);
+        }
+      }
+
+      // BFS para encontrar todas as entidades alcançáveis a partir de qualquer Fato
+      const alcancaveis = new Set<string>();
+      const fila: string[] = [];
+
+      for (const fatoId of fatoIds) {
+        alcancaveis.add(fatoId);
+        fila.push(fatoId);
+      }
+
+      while (fila.length > 0) {
+        const atual = fila.shift()!;
+        const vizinhos = adjacencias.get(atual);
+        if (vizinhos) {
+          for (const vizinho of vizinhos) {
+            if (!alcancaveis.has(vizinho)) {
+              alcancaveis.add(vizinho);
+              fila.push(vizinho);
+            }
+          }
+        }
+      }
+
+      // Dimensões que não alcançam nenhuma Fato são consideradas órfãs
+      for (const dim of dimensoes) {
+        if (!alcancaveis.has(dim.id)) {
+          diagnosticos.push(this.criarDiagnosticoM11(modelo, dim, true));
+        }
+      }
+    } else {
+      // ESTRELA (ou fallback padrão): Cada dimensão deve possuir relacionamento ativo direto com ao menos uma entidade FATO
+      for (const dim of dimensoes) {
+        const conectadaDiretamenteAFato = relacionamentosAtivos.some(
+          (r) =>
+            (r.entidade_origem_id === dim.id && fatoIds.has(r.entidade_destino_id)) ||
+            (r.entidade_destino_id === dim.id && fatoIds.has(r.entidade_origem_id))
+        );
+
+        if (!conectadaDiretamenteAFato) {
+          diagnosticos.push(this.criarDiagnosticoM11(modelo, dim, false));
+        }
+      }
+    }
+  }
+
+  private static criarDiagnosticoM11(
+    modelo: ModeloAnaliticoCompleto,
+    dimensao: EntidadeAnalitica,
+    ehSnowflake: boolean = false
+  ): DiagnosticoRegraModelagem {
+    const detalheConectividade = ehSnowflake
+      ? `caminho relacional até uma entidade Fato no esquema SNOWFLAKE`
+      : `relacionamento direto ativo com uma entidade Fato no esquema ESTRELA`;
+
+    return {
+      codigo_regra: "M-11",
+      severidade: "ALERTA_CRITICO",
+      titulo: `Dimensão "${dimensao.nome}" Sem Conectividade com Fato`,
+      deteccao: `A dimensão analítica "${dimensao.nome}" não possui ${detalheConectividade}.`,
+      explicacao:
+        "Em modelos dimensionais, dimensões desconectadas da estrutura de Fatos não propagam filtros analíticos nem segmentam métricas, podendo gerar produtos cartesianos ou agregações incorretas. Tabelas desconectadas deliberadas (ex: parâmetros What-If) exigem justificativa formal na homologação.",
+      recomendacao:
+        `Conecte a dimensão "${dimensao.nome}" à tabela Fato por meio de chaves primárias e estrangeiras, ou registre justificativa técnica formal se for uma tabela deliberadamente desconectada.`,
+      acao_humana_necessaria:
+        `Criar relacionamento válido para a dimensão "${dimensao.nome}" ou registrar justificativa técnica formal de exceção na homologação.`,
+      evidencia: `arquitetura: ${modelo.tipo_arquitetura}, dimensao_orfa_id: "${dimensao.id}", dimensao_nome: "${dimensao.nome}", papel: ${dimensao.papel}`,
+      entidade_relacionada_id: dimensao.id,
+    };
   }
 }
