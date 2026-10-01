@@ -573,10 +573,199 @@ export const entregaveisDemanda = sqliteTable(
 );
 
 /**
+ * Modelos Power BI (V1 — Subunidade 3.7 / Bloco 7)
+ * Representa arquivos .pbix, .pbip ou declaração de isenção de Power BI vinculados à demanda.
+ */
+export const modelosPowerBi = sqliteTable(
+  'modelos_powerbi',
+  {
+    id: text('id').primaryKey(),
+    demanda_id: text('demanda_id')
+      .notNull()
+      .references(() => demandas.id, { onDelete: 'cascade' }),
+    modelo_analitico_id: text('modelo_analitico_id')
+      .references(() => modelosAnaliticos.id, { onDelete: 'set null' }),
+    nome_arquivo: text('nome_arquivo').notNull(),
+    caminho_local: text('caminho_local'),
+    tipo_formato: text('tipo_formato').notNull().default('PBIX'),
+    status: text('status').notNull().default('EM_DESENVOLVIMENTO'),
+    justificativa_isencao: text('justificativa_isencao'),
+    hash_sha256: text('hash_sha256'),
+    versao_powerbi: text('versao_powerbi'),
+    tamanho_bytes: integer('tamanho_bytes').notNull().default(0),
+    criado_em: text('criado_em').notNull(),
+    atualizado_em: text('atualizado_em').notNull(),
+  },
+  (table) => ({
+    demandaIdIdx: index('idx_modelos_powerbi_demanda_id').on(table.demanda_id),
+    modeloAnaliticoIdIdx: index('idx_modelos_powerbi_modelo_analitico_id').on(table.modelo_analitico_id),
+  })
+);
+
+/**
+ * Medidas DAX (V1 — Subunidade 3.7 / Bloco 7)
+ * Especificação e código DAX de medidas calculadas associadas ao modelo Power BI.
+ */
+export const medidasDax = sqliteTable(
+  'medidas_dax',
+  {
+    id: text('id').primaryKey(),
+    modelo_powerbi_id: text('modelo_powerbi_id')
+      .notNull()
+      .references(() => modelosPowerBi.id, { onDelete: 'cascade' }),
+    metrica_analitica_id: text('metrica_analitica_id')
+      .references(() => metricasAnaliticas.id, { onDelete: 'set null' }),
+    nome: text('nome').notNull(),
+    tabela_hospedeira: text('tabela_hospedeira').notNull().default('_Medidas'),
+    expressao_dax: text('expressao_dax').notNull(),
+    descricao: text('descricao'),
+    formato_string: text('formato_string'),
+    categoria_dax: text('categoria_dax').notNull().default('AGREGACAO_SIMPLES'),
+    ordem: integer('ordem').notNull().default(0),
+    criado_em: text('criado_em').notNull(),
+    atualizado_em: text('atualizado_em').notNull(),
+  },
+  (table) => ({
+    modeloPowerBiIdIdx: index('idx_medidas_dax_modelo_powerbi_id').on(table.modelo_powerbi_id),
+    metricaAnaliticaIdIdx: index('idx_medidas_dax_metrica_id').on(table.metrica_analitica_id),
+  })
+);
+
+/**
+ * Páginas de Relatório (V1 — Subunidade 3.7 / Bloco 7)
+ * Especificação e organização das páginas/telas do relatório do dashboard.
+ */
+export const paginasRelatorio = sqliteTable(
+  'paginas_relatorio',
+  {
+    id: text('id').primaryKey(),
+    modelo_powerbi_id: text('modelo_powerbi_id')
+      .notNull()
+      .references(() => modelosPowerBi.id, { onDelete: 'cascade' }),
+    nome: text('nome').notNull(),
+    ordem: integer('ordem').notNull().default(0),
+    objetivo_analitico: text('objetivo_analitico'),
+    publico_alvo: text('publico_alvo').notNull().default('EXECUTIVO'),
+    layout_grid: text('layout_grid').notNull().default('PADRAO_16_9'),
+    criado_em: text('criado_em').notNull(),
+    atualizado_em: text('atualizado_em').notNull(),
+  },
+  (table) => ({
+    modeloPowerBiIdIdx: index('idx_paginas_relatorio_modelo_id').on(table.modelo_powerbi_id),
+  })
+);
+
+/**
+ * Visuais do Dashboard (V1 — Subunidade 3.7 / Bloco 7)
+ * Especificação dos elementos gráficos do dashboard com justificativa de Data Viz.
+ */
+export const visuaisDashboard = sqliteTable(
+  'visuais_dashboard',
+  {
+    id: text('id').primaryKey(),
+    pagina_id: text('pagina_id')
+      .notNull()
+      .references(() => paginasRelatorio.id, { onDelete: 'cascade' }),
+    titulo: text('titulo').notNull(),
+    tipo_visual: text('tipo_visual').notNull().default('CARTAO_KPI'),
+    posicao_layout: text('posicao_layout').notNull().default('CENTRAL_TENDENCIAS'),
+    medidas_utilizadas_ids: text('medidas_utilizadas_ids').notNull().default('[]'),
+    atributos_utilizados_ids: text('atributos_utilizados_ids').notNull().default('[]'),
+    justificativa_dataviz: text('justificativa_dataviz'),
+    ordem: integer('ordem').notNull().default(0),
+    criado_em: text('criado_em').notNull(),
+    atualizado_em: text('atualizado_em').notNull(),
+  },
+  (table) => ({
+    paginaIdIdx: index('idx_visuais_dashboard_pagina_id').on(table.pagina_id),
+  })
+);
+
+/**
+ * Evidências Analíticas (V1 — Subunidade 3.8 / Bloco 8 — Evidence Core)
+ * Infraestrutura canônica para registro, persistência, consulta e auditoria de evidências.
+ */
+export const evidenciasAnaliticas = sqliteTable(
+  'evidencias_analiticas',
+  {
+    id: text('id').primaryKey(),
+    demanda_id: text('demanda_id')
+      .notNull()
+      .references(() => demandas.id, { onDelete: 'cascade' }),
+    projeto_id: text('projeto_id')
+      .references(() => projetos.id, { onDelete: 'set null' }),
+    tipo: text('tipo').notNull().default('DADOS'),
+    etapa_origem: text('etapa_origem').notNull().default('DADOS'),
+    artefato_origem_tipo: text('artefato_origem_tipo'),
+    artefato_origem_id: text('artefato_origem_id'),
+    titulo: text('titulo').notNull(),
+    descricao: text('descricao').notNull(),
+    fato_observado: text('fato_observado').notNull(),
+    estado_anterior: text('estado_anterior'),
+    acao_registrada: text('acao_registrada').notNull(),
+    estado_posterior: text('estado_posterior'),
+    resultado_mensuravel: text('resultado_mensuravel'),
+    inferencia_recomendacao: text('inferencia_recomendacao'),
+    decisao_humana: text('decisao_humana'),
+    metodo_captura: text('metodo_captura').notNull().default('MANUAL'),
+    status_validacao: text('status_validacao').notNull().default('CAPTURADA'),
+    classificacao_exposicao: text('classificacao_exposicao').notNull().default('INTERNA'),
+    elegibilidade_portfolio: integer('elegibilidade_portfolio', { mode: 'boolean' }).notNull().default(false),
+    executor: text('executor').notNull().default('ANALISTA'),
+    metadados: text('metadados'),
+    criado_em: text('criado_em').notNull(),
+    atualizado_em: text('atualizado_em').notNull(),
+  },
+  (table) => ({
+    demandaIdIdx: index('idx_evidencias_analiticas_demanda_id').on(table.demanda_id),
+    projetoIdIdx: index('idx_evidencias_analiticas_projeto_id').on(table.projeto_id),
+    tipoIdx: index('idx_evidencias_analiticas_tipo').on(table.tipo),
+    statusIdx: index('idx_evidencias_analiticas_status').on(table.status_validacao),
+  })
+);
+
+/**
+ * Event Log de Eventos Analíticos (V1 — Subunidade 3.8 / Bloco 8 — Evidence Event Engine)
+ * Rastreabilidade, histórico de processamento e chave de idempotência de eventos analíticos.
+ */
+export const eventosAnaliticosLog = sqliteTable(
+  'eventos_analiticos_log',
+  {
+    id: text('id').primaryKey(),
+    id_evento: text('id_evento').notNull().unique(),
+    demanda_id: text('demanda_id')
+      .notNull()
+      .references(() => demandas.id, { onDelete: 'cascade' }),
+    projeto_id: text('projeto_id')
+      .references(() => projetos.id, { onDelete: 'set null' }),
+    tipo_evento: text('tipo_evento').notNull(),
+    etapa_origem: text('etapa_origem').notNull(),
+    politica_aplicada: text('politica_aplicada').notNull(),
+    status_processamento: text('status_processamento').notNull(),
+    evidencia_gerada_id: text('evidencia_gerada_id')
+      .references(() => evidenciasAnaliticas.id, { onDelete: 'set null' }),
+    correlation_id: text('correlation_id'),
+    causation_id: text('causation_id'),
+    motivo: text('motivo'),
+    erro_detalhe: text('erro_detalhe'),
+    payload_snapshot: text('payload_snapshot'),
+    processado_em: text('processado_em').notNull(),
+  },
+  (table) => ({
+    demandaIdIdx: index('idx_eventos_analiticos_log_demanda_id').on(table.demanda_id),
+    tipoEventoIdx: index('idx_eventos_analiticos_log_tipo').on(table.tipo_evento),
+    idEventoIdx: index('idx_eventos_analiticos_log_id_evento').on(table.id_evento),
+  })
+);
+
+
+/**
  * Relacionamentos declarativos Drizzle ORM
  */
 export const projetosRelations = relations(projetos, ({ many }) => ({
   demandas: many(demandas),
+  evidencias: many(evidenciasAnaliticas),
+  eventosLog: many(eventosAnaliticosLog),
 }));
 
 export const demandasRelations = relations(demandas, ({ one, many }) => ({
@@ -594,6 +783,9 @@ export const demandasRelations = relations(demandas, ({ one, many }) => ({
   modelosAnaliticos: many(modelosAnaliticos),
   validacoesConciliacao: many(validacoesConciliacao),
   entregaveisDemanda: many(entregaveisDemanda),
+  modelosPowerBi: many(modelosPowerBi),
+  evidencias: many(evidenciasAnaliticas),
+  eventosLog: many(eventosAnaliticosLog),
 }));
 
 export const trilhaAuditoriaRelations = relations(trilhaAuditoria, ({ one }) => ({
@@ -751,6 +943,7 @@ export const modelosAnaliticosRelations = relations(modelosAnaliticos, ({ one, m
   entidades: many(entidadesAnaliticas),
   relacionamentos: many(relacionamentosAnaliticos),
   metricas: many(metricasAnaliticas),
+  modelosPowerBi: many(modelosPowerBi),
 }));
 
 export const entidadesAnaliticasRelations = relations(entidadesAnaliticas, ({ one, many }) => ({
@@ -800,7 +993,7 @@ export const relacionamentosAnaliticosRelations = relations(relacionamentosAnali
   }),
 }));
 
-export const metricasAnaliticasRelations = relations(metricasAnaliticas, ({ one }) => ({
+export const metricasAnaliticasRelations = relations(metricasAnaliticas, ({ one, many }) => ({
   modelo: one(modelosAnaliticos, {
     fields: [metricasAnaliticas.modelo_id],
     references: [modelosAnaliticos.id],
@@ -809,6 +1002,7 @@ export const metricasAnaliticasRelations = relations(metricasAnaliticas, ({ one 
     fields: [metricasAnaliticas.entidade_id],
     references: [entidadesAnaliticas.id],
   }),
+  medidasDax: many(medidasDax),
 }));
 
 export const validacoesConciliacaoRelations = relations(validacoesConciliacao, ({ one }) => ({
@@ -830,5 +1024,70 @@ export const entregaveisDemandaRelations = relations(entregaveisDemanda, ({ one 
   demanda: one(demandas, {
     fields: [entregaveisDemanda.demanda_id],
     references: [demandas.id],
+  }),
+}));
+
+export const modelosPowerBiRelations = relations(modelosPowerBi, ({ one, many }) => ({
+  demanda: one(demandas, {
+    fields: [modelosPowerBi.demanda_id],
+    references: [demandas.id],
+  }),
+  modeloAnalitico: one(modelosAnaliticos, {
+    fields: [modelosPowerBi.modelo_analitico_id],
+    references: [modelosAnaliticos.id],
+  }),
+  medidas: many(medidasDax),
+  paginas: many(paginasRelatorio),
+}));
+
+export const medidasDaxRelations = relations(medidasDax, ({ one }) => ({
+  modeloPowerBi: one(modelosPowerBi, {
+    fields: [medidasDax.modelo_powerbi_id],
+    references: [modelosPowerBi.id],
+  }),
+  metricaAnalitica: one(metricasAnaliticas, {
+    fields: [medidasDax.metrica_analitica_id],
+    references: [metricasAnaliticas.id],
+  }),
+}));
+
+export const paginasRelatorioRelations = relations(paginasRelatorio, ({ one, many }) => ({
+  modeloPowerBi: one(modelosPowerBi, {
+    fields: [paginasRelatorio.modelo_powerbi_id],
+    references: [modelosPowerBi.id],
+  }),
+  visuais: many(visuaisDashboard),
+}));
+
+export const visuaisDashboardRelations = relations(visuaisDashboard, ({ one }) => ({
+  pagina: one(paginasRelatorio, {
+    fields: [visuaisDashboard.pagina_id],
+    references: [paginasRelatorio.id],
+  }),
+}));
+
+export const evidenciasAnaliticasRelations = relations(evidenciasAnaliticas, ({ one }) => ({
+  demanda: one(demandas, {
+    fields: [evidenciasAnaliticas.demanda_id],
+    references: [demandas.id],
+  }),
+  projeto: one(projetos, {
+    fields: [evidenciasAnaliticas.projeto_id],
+    references: [projetos.id],
+  }),
+}));
+
+export const eventosAnaliticosLogRelations = relations(eventosAnaliticosLog, ({ one }) => ({
+  demanda: one(demandas, {
+    fields: [eventosAnaliticosLog.demanda_id],
+    references: [demandas.id],
+  }),
+  projeto: one(projetos, {
+    fields: [eventosAnaliticosLog.projeto_id],
+    references: [projetos.id],
+  }),
+  evidenciaGerada: one(evidenciasAnaliticas, {
+    fields: [eventosAnaliticosLog.evidencia_gerada_id],
+    references: [evidenciasAnaliticas.id],
   }),
 }));
