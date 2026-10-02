@@ -13,7 +13,8 @@ export type TipoEventoAuditoria =
   | 'VALIDACAO_RETESTADA'
   | 'ENTREGAVEL_REGISTRADO'
   | 'ENTREGA_ACEITA'
-  | 'ENTREGA_REJEITADA';
+  | 'ENTREGA_REJEITADA'
+  | 'EXCLUSAO';
 
 export type AutorTipoAuditoria = 'HUMANO' | 'IA';
 

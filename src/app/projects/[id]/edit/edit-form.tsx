@@ -3,19 +3,22 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Save, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Save, AlertCircle, AlertTriangle, Trash2 } from 'lucide-react';
 import { Projeto, StatusProjeto } from '@/core/domain/entities/projeto';
 import { updateProjectAction } from '@/app/actions/project-actions';
 import { Card } from '@/components/ui/Card';
+import { DeleteProjectModal } from '@/components/projects/DeleteProjectModal';
 
 interface EditProjectFormProps {
   project: Projeto;
+  totalDemandas?: number;
 }
 
-export function EditProjectForm({ project }: EditProjectFormProps) {
+export function EditProjectForm({ project, totalDemandas = 0 }: EditProjectFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     nome: project.nome,
@@ -202,6 +205,57 @@ export function EditProjectForm({ project }: EditProjectFormProps) {
           </div>
         </form>
       </Card>
+
+      {/* Seção Separada: Zona de Perigo */}
+      <Card className="p-6 border-red-900/40 bg-red-950/10 space-y-4" testId="project-danger-zone">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h2 className="text-sm font-bold text-red-400 flex items-center gap-2" data-testid="danger-zone-title">
+              <AlertTriangle className="h-4 w-4 text-red-400" />
+              <span>Zona de Perigo</span>
+            </h2>
+            <h3 className="text-xs font-semibold text-white">Excluir projeto</h3>
+            <p className="text-xs text-slate-400 max-w-md leading-relaxed">
+              A exclusão é permanente e irreversível. O projeto será completamente removido
+              do workspace com registro prévio na trilha de auditoria.
+            </p>
+            <div className="pt-1 flex items-center gap-2 text-xs">
+              <span className="text-slate-400">Demandas vinculadas:</span>
+              <span
+                data-testid="danger-zone-demand-count"
+                className={`font-semibold ${totalDemandas > 0 ? 'text-amber-400' : 'text-emerald-400'}`}
+              >
+                {totalDemandas} demanda(s)
+              </span>
+            </div>
+            {totalDemandas > 0 && (
+              <p className="text-[11px] text-amber-400/90 font-medium" data-testid="danger-zone-blocked-warning">
+                Não é possível excluir este projeto porque existem {totalDemandas} demanda(s) vinculada(s). Trate as demandas vinculadas antes de prosseguir.
+              </p>
+            )}
+          </div>
+
+          <div>
+            <button
+              type="button"
+              data-testid="btn-open-delete-project-modal"
+              onClick={() => setIsDeleteModalOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-800 bg-red-950/40 px-3.5 py-2 text-xs font-semibold text-red-300 hover:bg-red-900/50 hover:text-white transition-colors"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>Excluir Projeto</span>
+            </button>
+          </div>
+        </div>
+      </Card>
+
+      {/* Modal de Confirmação */}
+      <DeleteProjectModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        project={project}
+        totalDemandas={totalDemandas}
+      />
     </div>
   );
 }

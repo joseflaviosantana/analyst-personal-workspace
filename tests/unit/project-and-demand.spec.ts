@@ -46,6 +46,14 @@ class MockProjectRepository implements IProjectRepository {
   async countTotal(): Promise<number> {
     return this.projects.size;
   }
+
+  async countDemands(_projectId: string): Promise<number> {
+    return 0;
+  }
+
+  async delete(id: string): Promise<boolean> {
+    return this.projects.delete(id);
+  }
 }
 
 class MockDemandRepository implements IDemandRepository {

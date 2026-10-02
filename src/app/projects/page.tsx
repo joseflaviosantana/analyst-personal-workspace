@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { PlusCircle, FolderKanban, ArrowRight, FileText } from 'lucide-react';
+import { PlusCircle, FolderKanban, ArrowRight, FileText, CheckCircle2 } from 'lucide-react';
 import { SqliteProjectRepository } from '@/infrastructure/db/repositories/project-repository';
 import { ListProjectsUseCase } from '@/core/use-cases/projects/list-projects';
 import { Card } from '@/components/ui/Card';
@@ -9,13 +9,31 @@ import { EmptyState } from '@/components/ui/EmptyState';
 
 export const dynamic = 'force-dynamic';
 
-export default async function ProjectsPage() {
+interface ProjectsPageProps {
+  searchParams?: Promise<{ deleted?: string }>;
+}
+
+export default async function ProjectsPage({ searchParams }: ProjectsPageProps) {
+  const params = searchParams ? await searchParams : {};
+  const isDeleted = params.deleted === 'true';
+
   const projectRepo = new SqliteProjectRepository();
   const listProjects = new ListProjectsUseCase(projectRepo);
   const projects = await listProjects.execute();
 
   return (
     <div className="space-y-6">
+      {isDeleted && (
+        <div
+          data-testid="project-deleted-alert"
+          className="flex items-center gap-2.5 rounded-lg border border-emerald-800/80 bg-emerald-950/40 p-3.5 text-xs text-emerald-300 animate-in fade-in duration-200"
+          role="status"
+        >
+          <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-emerald-400" />
+          <span>Projeto excluído com sucesso do workspace.</span>
+        </div>
+      )}
+
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 data-testid="projects-page-title" className="text-2xl font-bold tracking-tight text-white">

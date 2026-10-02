@@ -7,4 +7,6 @@ export interface IProjectRepository {
   update(id: string, data: Partial<Projeto>): Promise<Projeto | null>;
   countActive(): Promise<number>;
   countTotal(): Promise<number>;
+  countDemands(projectId: string): Promise<number>;
+  delete(id: string): Promise<boolean>;
 }

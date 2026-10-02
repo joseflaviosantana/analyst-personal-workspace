@@ -106,4 +106,23 @@ export class SqliteProjectRepository implements IProjectRepository {
 
     return result ? Number(result.count) : 0;
   }
+
+  async countDemands(projectId: string): Promise<number> {
+    const result = this.database
+      .select({ count: sql<number>`count(*)` })
+      .from(demandas)
+      .where(eq(demandas.projeto_id, projectId))
+      .get();
+
+    return result ? Number(result.count) : 0;
+  }
+
+  async delete(id: string): Promise<boolean> {
+    const result = this.database
+      .delete(projetos)
+      .where(eq(projetos.id, id))
+      .run();
+
+    return result.changes > 0;
+  }
 }

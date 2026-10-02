@@ -1,4 +1,4 @@
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 import { db } from '../client';
 import { trilhaAuditoria } from '../schema';
 import { TrilhaAuditoria } from '@/core/domain/entities/trilha-auditoria';
@@ -38,6 +38,28 @@ export class SqliteAuditRepository implements IAuditRepository {
       .select()
       .from(trilhaAuditoria)
       .where(eq(trilhaAuditoria.demanda_id, demandaId))
+      .orderBy(desc(trilhaAuditoria.timestamp))
+      .all();
+
+    return rows.map((r) => ({
+      id: r.id,
+      demanda_id: r.demanda_id,
+      entidade: r.entidade,
+      entidade_id: r.entidade_id,
+      tipo_evento: r.tipo_evento as TrilhaAuditoria['tipo_evento'],
+      autor_tipo: r.autor_tipo as TrilhaAuditoria['autor_tipo'],
+      dados_anteriores: r.dados_anteriores,
+      dados_novos: r.dados_novos,
+      justificativa: r.justificativa,
+      timestamp: r.timestamp,
+    }));
+  }
+
+  async findByEntidade(entidade: string, entidadeId: string): Promise<TrilhaAuditoria[]> {
+    const rows = this.database
+      .select()
+      .from(trilhaAuditoria)
+      .where(and(eq(trilhaAuditoria.entidade, entidade), eq(trilhaAuditoria.entidade_id, entidadeId)))
       .orderBy(desc(trilhaAuditoria.timestamp))
       .all();
 

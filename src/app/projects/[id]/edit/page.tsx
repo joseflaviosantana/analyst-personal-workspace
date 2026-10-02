@@ -18,5 +18,7 @@ export default async function EditProjectPage({ params }: EditProjectPageProps) 
     notFound();
   }
 
-  return <EditProjectForm project={project} />;
+  const totalDemandas = await projectRepo.countDemands(id);
+
+  return <EditProjectForm project={project} totalDemandas={totalDemandas} />;
 }
