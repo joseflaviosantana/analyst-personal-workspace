@@ -1,0 +1,7 @@
+id_aluno,serie,turno,nota_media,frequencia_pct,status_matricula
+101,9º Ano,Manhã,7.5,92.0,ATIVO
+102,8º Ano,Tarde,4.2,68.5,EVADIDO
+103,9º Ano,Manhã,8.8,98.0,ATIVO
+104,7º Ano,Tarde,5.0,74.0,EM_RISCO
+105,8º Ano,Manhã,6.9,89.0,ATIVO
+106,9º Ano,Tarde,3.8,61.0,EVADIDO

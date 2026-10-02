@@ -196,6 +196,26 @@ export function TabDossier({ demand }: TabDossierProps) {
     setIsSubmitting(true);
     setFeedback(null);
     try {
+      // 1. Persiste o checklist de sanitização e dados em memória antes da homologação
+      const saveRes = await atualizarEstudoCasoAction({
+        caseId: caseData.id,
+        titulo: caseData.titulo,
+        problema_negocio: caseData.problema_negocio,
+        processo_preparacao: caseData.processo_preparacao,
+        modelagem_decisoes: caseData.modelagem_decisoes,
+        validacao_resultados: caseData.validacao_resultados,
+        competencias_demonstradas: caseData.competencias_demonstradas,
+        ferramentas_utilizadas: caseData.ferramentas_utilizadas,
+        metricas_fatos: caseData.metricas_fatos,
+        tecnicas_sanitizacao: caseData.tecnicas_sanitizacao,
+        checklist_sanitizacao: caseData.checklist_sanitizacao,
+      });
+
+      if (!saveRes.success) {
+        throw new Error(saveRes.error || 'Falha ao sincronizar checklist antes da homologação.');
+      }
+
+      // 2. Executa a homologação soberana APROV-10
       const res = await homologarEstudoCasoAction({
         caseId: caseData.id,
         autor,

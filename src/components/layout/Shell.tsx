@@ -10,9 +10,7 @@ import {
   PlusCircle, 
   ShieldCheck, 
   Database,
-  Layers,
-  CheckSquare,
-  Award
+  Layers
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -51,19 +49,6 @@ export function Shell({ children }: ShellProps) {
       icon: FileText,
       active: pathname.startsWith('/demands'),
       testId: 'nav-demands',
-    },
-  ];
-
-  const plannedNavItems = [
-    {
-      name: 'Aprovações',
-      badge: 'Bloco 5',
-      icon: CheckSquare,
-    },
-    {
-      name: 'Portfólio & Cases',
-      badge: 'Bloco 6',
-      icon: Award,
     },
   ];
 
@@ -107,33 +92,6 @@ export function Shell({ children }: ShellProps) {
                       <Icon className="h-4 w-4" aria-hidden="true" />
                       <span>{item.name}</span>
                     </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-
-          <div>
-            <div className="px-2 text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
-              Planejamento da V1
-            </div>
-            <ul className="space-y-1">
-              {plannedNavItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <li key={item.name}>
-                    <div
-                      className="flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium text-slate-600 cursor-not-allowed select-none"
-                      title={`Planejado para o ${item.badge}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Icon className="h-4 w-4 text-slate-600" aria-hidden="true" />
-                        <span>{item.name}</span>
-                      </div>
-                      <span className="rounded bg-slate-800/80 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
-                        {item.badge}
-                      </span>
-                    </div>
                   </li>
                 );
               })}

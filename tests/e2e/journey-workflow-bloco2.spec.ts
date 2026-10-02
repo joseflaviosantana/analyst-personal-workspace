@@ -44,6 +44,27 @@ test.describe('E2E: Workflow Operacional e Governança de Estados da Demanda (Bl
     await expect(stateBadge).toHaveText(/Em Clarificação/i);
 
     // 4. Transição Normal 2: Em Clarificação -> Dados Recebidos
+    // Homologação de Requisitos (APROV-01) na Aba 2 (Governança Bloco 3.8)
+    await page.getByTestId('tab-nav-requirements').click();
+    await expect(page.getByTestId('tab-requirements')).toBeVisible();
+    await expect(page.getByText('Carregando etapa de requisitos...')).not.toBeVisible();
+
+    await page.getByTestId('btn-edit-briefing').click();
+    await expect(page.getByText('Editar Briefing Analítico')).toBeVisible();
+    await page.locator('input[placeholder*="Últimos 24 meses"]').fill('Exercício 2024');
+    await page.locator('input[placeholder*="Mensal por Filial"]').fill('Item por transação');
+    await page.locator('button[type="submit"]:has-text("Salvar Alterações")').click();
+    await expect(page.getByText('Editar Briefing Analítico')).not.toBeVisible();
+
+    await page.getByTestId('btn-open-homologate-modal').click();
+    await expect(page.getByText('Homologação Formal do Levantamento de Requisitos')).toBeVisible();
+    await page.locator('form textarea').first().fill('Levantamento homologado para validação de workflow.');
+    await page.locator('form button[type="submit"]:has-text("Homologar Levantamento")').click();
+    await expect(page.getByText('Homologação Formal do Levantamento de Requisitos')).not.toBeVisible();
+    await expect(page.getByText('Carregando etapa de requisitos...')).not.toBeVisible();
+    await expect(page.getByTestId('badge-homologado')).toBeVisible();
+
+    await page.getByTestId('tab-nav-overview').click();
     await expect(btnAdvance).toContainText(/Avançar para Dados Recebidos/i);
     await btnAdvance.click();
     await expect(stateBadge).toHaveText(/Dados Recebidos/i);
@@ -170,6 +191,7 @@ test.describe('E2E: Workflow Operacional e Governança de Estados da Demanda (Bl
     const demandTitle = `[E2E WF] Demanda ${uniqueSuffix}`;
     await page.getByTestId('input-demand-title').fill(demandTitle);
     await page.getByTestId('input-demand-raw-request').fill('Validação de fluxo de estados até a etapa de modelagem.');
+    await page.getByTestId('input-demand-objective').fill('Validar fluxo de governança até modelagem.');
     await page.getByTestId('btn-submit-demand').click();
     await expect(page).toHaveURL(/\/demands\/dem_/);
 
@@ -182,7 +204,28 @@ test.describe('E2E: Workflow Operacional e Governança de Estados da Demanda (Bl
     await btnAdvance.click();
     await expect(stateBadge).toHaveText(/Em Clarificação/i);
 
+    // Homologação de Requisitos (APROV-01) na Aba 2 (Governança Bloco 3.8)
+    await page.getByTestId('tab-nav-requirements').click();
+    await expect(page.getByTestId('tab-requirements')).toBeVisible();
+    await expect(page.getByText('Carregando etapa de requisitos...')).not.toBeVisible();
+
+    await page.getByTestId('btn-edit-briefing').click();
+    await expect(page.getByText('Editar Briefing Analítico')).toBeVisible();
+    await page.locator('input[placeholder*="Últimos 24 meses"]').fill('Exercício 2024');
+    await page.locator('input[placeholder*="Mensal por Filial"]').fill('Item por transação');
+    await page.locator('button[type="submit"]:has-text("Salvar Alterações")').click();
+    await expect(page.getByText('Editar Briefing Analítico')).not.toBeVisible();
+
+    await page.getByTestId('btn-open-homologate-modal').click();
+    await expect(page.getByText('Homologação Formal do Levantamento de Requisitos')).toBeVisible();
+    await page.locator('form textarea').first().fill('Levantamento homologado para validação do pipeline.');
+    await page.locator('form button[type="submit"]:has-text("Homologar Levantamento")').click();
+    await expect(page.getByText('Homologação Formal do Levantamento de Requisitos')).not.toBeVisible();
+    await expect(page.getByText('Carregando etapa de requisitos...')).not.toBeVisible();
+    await expect(page.getByTestId('badge-homologado')).toBeVisible();
+
     // 2.2 Em Clarificação -> Dados Recebidos
+    await page.getByTestId('tab-nav-overview').click();
     await expect(btnAdvance).toContainText(/Avançar para Dados Recebidos/i);
     await btnAdvance.click();
     await expect(stateBadge).toHaveText(/Dados Recebidos/i);

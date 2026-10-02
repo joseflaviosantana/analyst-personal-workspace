@@ -75,7 +75,7 @@ const defaultValidacaoRepo = new SqliteValidacaoConciliacaoRepository();
 const defaultDemandRepo = new SqliteDemandRepository();
 const defaultAuditRepo = new SqliteAuditRepository();
 
-export function resolveDeliverableDeps(customDeps?: Partial<DeliverableActionDeps>): DeliverableActionDeps {
+function resolveDeliverableDeps(customDeps?: Partial<DeliverableActionDeps>): DeliverableActionDeps {
   const entregavelRepo = customDeps?.entregavelRepo ?? defaultEntregavelRepo;
   const validacaoRepo = customDeps?.validacaoRepo ?? defaultValidacaoRepo;
   const demandRepo = customDeps?.demandRepo ?? defaultDemandRepo;

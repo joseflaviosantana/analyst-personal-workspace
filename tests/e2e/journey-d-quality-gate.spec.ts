@@ -34,7 +34,28 @@ test.describe('E2E: Jornada D — Governança de Qualidade, Regras R1–R5 e Qua
     await btnAdvance.click();
     await expect(stateBadge).toHaveText(/Em Clarificação/i);
 
-    // 2.2 Em Clarificação -> Dados Recebidos
+    // 2.2 Delimitação e Homologação Soberana APROV-01 na Aba 2 (Governança Bloco 3.8)
+    await page.getByTestId('tab-nav-requirements').click();
+    await expect(page.getByTestId('tab-requirements')).toBeVisible();
+    await expect(page.getByText('Carregando etapa de requisitos...')).not.toBeVisible();
+
+    await page.getByTestId('btn-edit-briefing').click();
+    await expect(page.getByText('Editar Briefing Analítico')).toBeVisible();
+    await page.locator('input[placeholder*="Últimos 24 meses"]').fill('Exercício 2024');
+    await page.locator('input[placeholder*="Mensal por Filial"]').fill('Transação por Filial');
+    await page.locator('button[type="submit"]:has-text("Salvar Alterações")').click();
+    await expect(page.getByText('Editar Briefing Analítico')).not.toBeVisible();
+
+    await page.getByTestId('btn-open-homologate-modal').click();
+    await expect(page.getByText('Homologação Formal do Levantamento de Requisitos')).toBeVisible();
+    await page.locator('form textarea').first().fill('Levantamento homologado para prosseguir com auditoria de qualidade.');
+    await page.locator('form button[type="submit"]:has-text("Homologar Levantamento")').click();
+    await expect(page.getByText('Homologação Formal do Levantamento de Requisitos')).not.toBeVisible();
+    await expect(page.getByText('Carregando etapa de requisitos...')).not.toBeVisible();
+    await expect(page.getByTestId('badge-homologado')).toBeVisible();
+
+    // 2.3 Em Clarificação -> Dados Recebidos
+    await page.getByTestId('tab-nav-overview').click();
     await expect(btnAdvance).toContainText(/Dados Recebidos/i);
     await btnAdvance.click();
     await expect(stateBadge).toHaveText(/Dados Recebidos/i);
@@ -301,6 +322,7 @@ test.describe('E2E: Jornada D — Governança de Qualidade, Regras R1–R5 e Qua
     await page.getByTestId('btn-new-demand-for-project').click();
     await page.getByTestId('input-demand-title').fill(demandTitle);
     await page.getByTestId('input-demand-raw-request').fill('Teste de integridade do Quality Gate contra bypass.');
+    await page.getByTestId('input-demand-objective').fill('Validar integridade de segurança contra bypass do Quality Gate.');
     await page.getByTestId('btn-submit-demand').click();
     await expect(page).toHaveURL(/\/demands\/dem_/);
 
@@ -309,6 +331,27 @@ test.describe('E2E: Jornada D — Governança de Qualidade, Regras R1–R5 e Qua
     await btnAdvance.click(); // -> Em Clarificação
     await expect(page.getByTestId('demand-workspace-state')).toHaveText(/Em Clarificação/i);
 
+    // Homologação de Requisitos (APROV-01)
+    await page.getByTestId('tab-nav-requirements').click();
+    await expect(page.getByTestId('tab-requirements')).toBeVisible();
+    await expect(page.getByText('Carregando etapa de requisitos...')).not.toBeVisible();
+
+    await page.getByTestId('btn-edit-briefing').click();
+    await expect(page.getByText('Editar Briefing Analítico')).toBeVisible();
+    await page.locator('input[placeholder*="Últimos 24 meses"]').fill('Exercício 2024');
+    await page.locator('input[placeholder*="Mensal por Filial"]').fill('Transação por Filial');
+    await page.locator('button[type="submit"]:has-text("Salvar Alterações")').click();
+    await expect(page.getByText('Editar Briefing Analítico')).not.toBeVisible();
+
+    await page.getByTestId('btn-open-homologate-modal').click();
+    await expect(page.getByText('Homologação Formal do Levantamento de Requisitos')).toBeVisible();
+    await page.locator('form textarea').first().fill('Homologação de requisitos para teste de integridade contra bypass.');
+    await page.locator('form button[type="submit"]:has-text("Homologar Levantamento")').click();
+    await expect(page.getByText('Homologação Formal do Levantamento de Requisitos')).not.toBeVisible();
+    await expect(page.getByText('Carregando etapa de requisitos...')).not.toBeVisible();
+    await expect(page.getByTestId('badge-homologado')).toBeVisible();
+
+    await page.getByTestId('tab-nav-overview').click();
     await btnAdvance.click(); // -> Dados Recebidos
     await expect(page.getByTestId('demand-workspace-state')).toHaveText(/Dados Recebidos/i);
 

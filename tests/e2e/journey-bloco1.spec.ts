@@ -87,11 +87,10 @@ test.describe('E2E: Jornada Funcional Completa do Bloco 1 (Projetos + Demandas +
     const tabsNav = page.getByTestId('demand-workspace-tabs');
     await expect(tabsNav).toBeVisible();
 
-    // Testa navegação para uma aba futura e verifica honestidade de indisponibilidade
+    // Testa navegação para a aba de Requisitos (Aba 2 implementada no Bloco 3.8)
     await page.getByTestId('tab-nav-requirements').click();
-    const placeholder = page.getByTestId('tab-future-placeholder');
-    await expect(placeholder).toBeVisible();
-    await expect(placeholder).toContainText('Espaço Metodológico Preparado');
+    const requirementsContent = page.getByTestId('tab-requirements');
+    await expect(requirementsContent).toBeVisible();
 
     // Retorna para Visão Geral
     await page.getByTestId('tab-nav-overview').click();

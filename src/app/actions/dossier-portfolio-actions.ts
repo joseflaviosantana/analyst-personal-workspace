@@ -96,7 +96,7 @@ export interface DossierPortfolioDeps {
   entregavelRepo: IEntregavelDemandaRepository;
 }
 
-export function resolveDossierPortfolioDeps(
+function resolveDossierPortfolioDeps(
   customDeps?: Partial<DossierPortfolioDeps>
 ): DossierPortfolioDeps {
   return {
