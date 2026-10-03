@@ -323,6 +323,36 @@ describe('Unit Tests: Use Cases de Requisitos & Perguntas ao Contratante (Bloco 
       expect(prontidao.avisosConsultivos.length).toBeGreaterThan(0);
     });
 
+    it('deve emitir aviso consultivo de prontidão quando houver requisitos do Intake aguardando deliberação humana (origem === INTAKE && status === IDENTIFICADO), sem bloquear o avanço', async () => {
+      mockRequisitos.push({
+        id: 'req_intake_1',
+        demanda_id: 'dem_test_1',
+        titulo: 'Métrica sugerida pelo Intake',
+        descricao: 'Sugestão inicial do snapshot',
+        categoria: CategoriaRequisito.METRICA_KPI,
+        prioridade: 'OBRIGATORIO',
+        status: StatusRequisito.IDENTIFICADO,
+        origem: 'INTAKE',
+        criado_em: '2026-10-01T10:00:00Z',
+        atualizado_em: '2026-10-01T10:00:00Z',
+      });
+
+      const avaliarProntidao = new AvaliarProntidaoRequisitosUseCase(
+        demandRepo,
+        requisitoRepo,
+        perguntaRepo
+      );
+      const prontidao = await avaliarProntidao.execute('dem_test_1');
+
+      expect(prontidao.bloqueado).toBe(false);
+      expect(prontidao.requisitosIntakePendentes).toBe(1);
+      expect(
+        prontidao.avisosConsultivos.some((aviso) =>
+          aviso.includes('Intake aguardando deliberação humana')
+        )
+      ).toBe(true);
+    });
+
     it('deve registrar homologação humana persistida e emitir evento com id canônico', async () => {
       const useCase = new HomologarLevantamentoRequisitosUseCase(
         demandRepo,

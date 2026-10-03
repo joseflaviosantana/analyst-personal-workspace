@@ -13,7 +13,7 @@ export interface RequisitoDemanda {
   categoria: CategoriaRequisito;
   prioridade: 'OBRIGATORIO' | 'DESEJAVEL';
   status: StatusRequisito;
-  origem: 'MANUAL' | 'SUGERIDO_COPILOTO';
+  origem: 'MANUAL' | 'SUGERIDO_COPILOTO' | 'INTAKE';
   criado_em: string;
   atualizado_em: string;
 }

@@ -12,7 +12,7 @@ export interface CriarRequisitoInput {
   descricao?: string | null;
   categoria: CategoriaRequisito;
   prioridade?: 'OBRIGATORIO' | 'DESEJAVEL';
-  origem?: 'MANUAL' | 'SUGERIDO_COPILOTO';
+  origem?: 'MANUAL' | 'SUGERIDO_COPILOTO' | 'INTAKE';
 }
 
 export class CriarRequisitoUseCase {

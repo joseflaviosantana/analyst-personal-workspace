@@ -52,19 +52,22 @@ import { TabEvidence } from '@/components/demands/TabEvidence';
 import { TabValidation } from '@/components/demands/TabValidation';
 import { TabDeliverables } from '@/components/demands/TabDeliverables';
 import { TabDossier } from '@/components/demands/TabDossier';
+import { IntakeContinuityBridge } from '@/components/demands/IntakeContinuityBridge';
 
 interface DemandWorkspaceViewProps {
   demand: DemandaComProjeto;
   timeline?: TrilhaAuditoria[];
   initialAssets?: AtivoDados[];
   defaultTab?: string;
+  isOrigemIntake?: boolean;
 }
 
 export function DemandWorkspaceView({
   demand,
   timeline = [],
   initialAssets = [],
-  defaultTab = 'overview'
+  defaultTab = 'overview',
+  isOrigemIntake = false
 }: DemandWorkspaceViewProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<string>(defaultTab);
@@ -323,6 +326,14 @@ export function DemandWorkspaceView({
           )}
         </div>
       </div>
+
+      {/* Ponte de Continuidade Intake → Demanda */}
+      {(demand.intake_snapshot || isOrigemIntake) && (
+        <IntakeContinuityBridge
+          intakeSnapshotRaw={demand.intake_snapshot}
+          isOrigemIntake={isOrigemIntake}
+        />
+      )}
 
       {/* Navegação Contextual por 11 Abas da UX Normativa */}
       <div className="border-b border-slate-800 overflow-x-auto pb-px" data-testid="demand-workspace-tabs">

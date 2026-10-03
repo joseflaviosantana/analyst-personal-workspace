@@ -18,6 +18,7 @@ export interface Demanda {
   requisitos_ressalvas?: string | null;
   estado: EstadoDemanda;
   estado_anterior?: EstadoDemanda | string | null;
+  intake_snapshot?: string | null;
   criado_em: string;
   atualizado_em: string;
   data_conclusao: string | null;

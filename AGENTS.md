@@ -76,6 +76,7 @@ O Analyst Personal Workspace utiliza automação determinística de leitura para
 - **Linting e Tipagem Estrita**: `npm run check:static` garante `eslint` e `tsc --noEmit` 100% limpos.
 - **Suíte de Testes Segura**: `npm run test:safe` executa Vitest com `--fileParallelism=false`, prevenindo contenção de I/O conhecida entre better-sqlite3 e Windows.
 - **Regra Inegociável:** É expressamente proibido alterar, enfraquecer, mockar indevidamente ou desabilitar testes apenas para obter status verde artificialmente.
+- **Instrumentação Mínima de Evidências de Execução (Fase 0)**: Arquivos de evidência estruturada (`docs/evidence/executions/EV-*.md`) baseados em `.template.md` só devem ser gerados diante de fatos relevantes: bugs complexos, regressões inesperadas, falhas não triviais de integração/concorrência ou consolidação de novos Golden Flows/padrões reutilizáveis. É expressamente proibido registrar execuções triviais, correções cosméticas, microtarefas ou alterações corriqueiras, evitando burocracia desnecessária e mantendo o foco absoluto na esteira da V1.
 
 ---
 

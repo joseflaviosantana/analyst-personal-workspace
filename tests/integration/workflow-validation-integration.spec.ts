@@ -35,7 +35,7 @@ vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }));
 
-describe('Integration Tests: Governança Factual de Validação e Conclusão no Workflow (Subunidade 3.7A)', () => {
+describe('Integration Tests: Governança Factual de Validação e Conclusão no Workflow (Subunidade 3.7A) [@golden-test]', () => {
   const testDbDir = path.join(process.cwd(), '.workspace', 'data');
   const testDbPath = path.join(testDbDir, 'test_workflow_validation_integration_37a.db');
   let sqliteDb: Database.Database;

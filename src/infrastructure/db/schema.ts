@@ -64,6 +64,7 @@ export const demandas = sqliteTable('demandas', {
   requisitos_ressalvas: text('requisitos_ressalvas'),
   estado: text('estado').notNull().default('NOVA'),
   estado_anterior: text('estado_anterior'),
+  intake_snapshot: text('intake_snapshot'),
   criado_em: text('criado_em').notNull(),
   atualizado_em: text('atualizado_em').notNull(),
   data_conclusao: text('data_conclusao'),

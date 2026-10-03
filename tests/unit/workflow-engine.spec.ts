@@ -8,7 +8,7 @@ import {
 } from '@/core/domain/enums/estado-demanda';
 import { WorkflowEngine, WorkflowTransitionError } from '@/core/domain/rules/workflow-engine';
 
-describe('Core Domain: Workflow Engine & Governança de Estados (V1 — Bloco 2)', () => {
+describe('Core Domain: Workflow Engine & Governança de Estados (V1 — Bloco 2) [@golden-test]', () => {
   describe('1. Transições Válidas da Esteira Sequencial Normal (1 a 8)', () => {
     it('deve permitir todo o encadeamento sequencial normal passo a passo', () => {
       const contextoValido = {

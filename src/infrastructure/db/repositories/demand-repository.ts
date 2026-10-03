@@ -48,6 +48,7 @@ export class SqliteDemandRepository implements IDemandRepository {
       requisitos_ressalvas: row.demanda.requisitos_ressalvas,
       estado: normalizarEstadoDemanda(row.demanda.estado),
       estado_anterior: row.demanda.estado_anterior ? normalizarEstadoDemanda(row.demanda.estado_anterior) : null,
+      intake_snapshot: row.demanda.intake_snapshot ?? null,
       criado_em: row.demanda.criado_em,
       atualizado_em: row.demanda.atualizado_em,
       data_conclusao: row.demanda.data_conclusao,

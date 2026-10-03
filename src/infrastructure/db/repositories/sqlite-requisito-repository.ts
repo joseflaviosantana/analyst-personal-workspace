@@ -35,7 +35,7 @@ export class SqliteRequisitoDemandaRepository implements IRequisitoDemandaReposi
       categoria: row.categoria as CategoriaRequisito,
       prioridade: row.prioridade as 'OBRIGATORIO' | 'DESEJAVEL',
       status: row.status as StatusRequisito,
-      origem: row.origem as 'MANUAL' | 'SUGERIDO_COPILOTO',
+      origem: row.origem as 'MANUAL' | 'SUGERIDO_COPILOTO' | 'INTAKE',
       criado_em: row.criado_em,
       atualizado_em: row.atualizado_em,
     };
@@ -57,7 +57,7 @@ export class SqliteRequisitoDemandaRepository implements IRequisitoDemandaReposi
       categoria: row.categoria as CategoriaRequisito,
       prioridade: row.prioridade as 'OBRIGATORIO' | 'DESEJAVEL',
       status: row.status as StatusRequisito,
-      origem: row.origem as 'MANUAL' | 'SUGERIDO_COPILOTO',
+      origem: row.origem as 'MANUAL' | 'SUGERIDO_COPILOTO' | 'INTAKE',
       criado_em: row.criado_em,
       atualizado_em: row.atualizado_em,
     }));

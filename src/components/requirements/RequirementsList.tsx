@@ -13,6 +13,8 @@ import {
   Tag,
   Loader2,
   X,
+  Sparkles,
+  Undo2,
 } from 'lucide-react';
 import { RequisitoDemanda } from '@/core/domain/entities/requisito-demanda';
 import {
@@ -153,6 +155,94 @@ export function RequirementsList({
     }
   };
 
+  const propostasIntakePendentes = requisitos.filter(
+    (r) => r.origem === 'INTAKE' && r.status === StatusRequisito.IDENTIFICADO
+  );
+
+  const [isProcessingTriage, setIsProcessingTriage] = useState(false);
+
+  const handleValidarRequisito = async (reqId: string) => {
+    if (isReadOnly) return;
+    setIsProcessingTriage(true);
+    try {
+      const res = await atualizarRequisitoAction({
+        id: reqId,
+        demandaId,
+        status: StatusRequisito.CLARIFICADO,
+      });
+      if (res.success) {
+        onRefresh();
+      } else {
+        alert(res.error || 'Erro ao validar requisito.');
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Erro ao validar requisito.');
+    } finally {
+      setIsProcessingTriage(false);
+    }
+  };
+
+  const handleDescartarRequisito = async (reqId: string) => {
+    if (isReadOnly) return;
+    setIsProcessingTriage(true);
+    try {
+      const res = await atualizarRequisitoAction({
+        id: reqId,
+        demandaId,
+        status: StatusRequisito.DESCARTADO,
+      });
+      if (res.success) {
+        onRefresh();
+      } else {
+        alert(res.error || 'Erro ao descartar requisito.');
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Erro ao descartar requisito.');
+    } finally {
+      setIsProcessingTriage(false);
+    }
+  };
+
+  const handleRestaurarRequisito = async (reqId: string) => {
+    if (isReadOnly) return;
+    setIsProcessingTriage(true);
+    try {
+      const res = await atualizarRequisitoAction({
+        id: reqId,
+        demandaId,
+        status: StatusRequisito.CLARIFICADO,
+      });
+      if (res.success) {
+        onRefresh();
+      } else {
+        alert(res.error || 'Erro ao restaurar requisito.');
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Erro ao restaurar requisito.');
+    } finally {
+      setIsProcessingTriage(false);
+    }
+  };
+
+  const handleValidarTodasPropostas = async () => {
+    if (isReadOnly || propostasIntakePendentes.length === 0) return;
+    setIsProcessingTriage(true);
+    try {
+      for (const req of propostasIntakePendentes) {
+        await atualizarRequisitoAction({
+          id: req.id,
+          demandaId,
+          status: StatusRequisito.CLARIFICADO,
+        });
+      }
+      onRefresh();
+    } catch (err: any) {
+      alert(err?.message || 'Erro ao validar propostas em lote.');
+    } finally {
+      setIsProcessingTriage(false);
+    }
+  };
+
   const filteredRequisitos = requisitos.filter((r) =>
     filterCategoria === 'ALL' ? true : r.categoria === filterCategoria
   );
@@ -234,6 +324,44 @@ export function RequirementsList({
         </div>
       </div>
 
+      {/* Banner de Triagem Assistida do Intake */}
+      {!isReadOnly && propostasIntakePendentes.length > 0 && (
+        <div
+          data-testid="intake-triagem-banner"
+          className="rounded-lg border border-amber-500/40 bg-amber-950/20 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+        >
+          <div className="flex items-start gap-2.5">
+            <Sparkles className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-xs font-medium text-amber-200">
+                Triagem Assistida do Intake:{' '}
+                <span className="font-semibold text-white">
+                  {propostasIntakePendentes.length} proposta(s)
+                </span>{' '}
+                aguardando deliberação humana.
+              </p>
+              <p className="text-[11px] text-amber-300/80 mt-0.5">
+                Revise cada requisito sugerido para validar no escopo ou descartar preservando o histórico de rastreabilidade.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleValidarTodasPropostas}
+            disabled={isProcessingTriage}
+            data-testid="btn-validate-all-intake"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-50 transition-colors shrink-0 self-start sm:self-auto shadow-sm"
+          >
+            {isProcessingTriage ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <CheckCircle className="h-3.5 w-3.5" />
+            )}
+            <span>Validar Todas as Propostas</span>
+          </button>
+        </div>
+      )}
+
       {/* Lista de Requisitos */}
       {filteredRequisitos.length === 0 ? (
         <Card className="p-8 text-center bg-slate-900/40 border-dashed border-slate-800">
@@ -264,6 +392,11 @@ export function RequirementsList({
                         <Tag className="h-2.5 w-2.5 mr-1 inline" />
                         {ROTULOS_CATEGORIA_REQUISITO[req.categoria]}
                       </Badge>
+                      {req.origem === 'INTAKE' && (
+                        <Badge variant="info" className="text-[10px]" testId={`badge-origem-intake-${req.id}`}>
+                          Proposta do Intake
+                        </Badge>
+                      )}
                       <Badge
                         variant={req.prioridade === 'OBRIGATORIO' ? 'warning' : 'neutral'}
                         className="text-[10px]"
@@ -305,14 +438,55 @@ export function RequirementsList({
 
               {!isReadOnly && (
                 <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-[11px] text-slate-500">
-                  <span>Origem: {req.origem}</span>
-                  <button
-                    type="button"
-                    onClick={() => handleToggleStatus(req)}
-                    className="hover:text-blue-400 text-slate-400 font-medium transition-colors"
-                  >
-                    Avançar Status
-                  </button>
+                  <span>Origem: {req.origem === 'INTAKE' ? 'Entrada Inteligente' : req.origem}</span>
+
+                  <div className="flex items-center gap-2">
+                    {req.origem === 'INTAKE' && req.status === StatusRequisito.IDENTIFICADO ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleValidarRequisito(req.id)}
+                          disabled={isProcessingTriage}
+                          data-testid={`btn-validate-intake-${req.id}`}
+                          className="inline-flex items-center gap-1 text-emerald-400 hover:text-emerald-300 font-semibold transition-colors disabled:opacity-50"
+                        >
+                          <CheckCircle className="h-3 w-3" />
+                          <span>Validar</span>
+                        </button>
+                        <span className="text-slate-700">|</span>
+                        <button
+                          type="button"
+                          onClick={() => handleDescartarRequisito(req.id)}
+                          disabled={isProcessingTriage}
+                          data-testid={`btn-discard-intake-${req.id}`}
+                          className="inline-flex items-center gap-1 text-slate-400 hover:text-rose-400 font-medium transition-colors disabled:opacity-50"
+                        >
+                          <Ban className="h-3 w-3" />
+                          <span>Descartar</span>
+                        </button>
+                      </div>
+                    ) : req.status === StatusRequisito.DESCARTADO ? (
+                      <button
+                        type="button"
+                        onClick={() => handleRestaurarRequisito(req.id)}
+                        disabled={isProcessingTriage}
+                        data-testid={`btn-restore-intake-${req.id}`}
+                        className="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 font-medium transition-colors disabled:opacity-50"
+                      >
+                        <Undo2 className="h-3 w-3" />
+                        <span>Restaurar</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleToggleStatus(req)}
+                        data-testid={`btn-toggle-status-${req.id}`}
+                        className="hover:text-blue-400 text-slate-300 font-medium transition-colors"
+                      >
+                        <span>Avançar Status</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             </Card>

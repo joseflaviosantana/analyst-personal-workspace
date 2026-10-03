@@ -68,7 +68,7 @@ export async function criarRequisitoAction(input: {
   descricao?: string | null;
   categoria: CategoriaRequisito;
   prioridade?: 'OBRIGATORIO' | 'DESEJAVEL';
-  origem?: 'MANUAL' | 'SUGERIDO_COPILOTO';
+  origem?: 'MANUAL' | 'SUGERIDO_COPILOTO' | 'INTAKE';
 }) {
   try {
     const { demandRepo, requisitoRepo } = getDependencies();

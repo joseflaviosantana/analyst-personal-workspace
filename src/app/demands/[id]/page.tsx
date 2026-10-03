@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 
 interface DemandWorkspacePageProps {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ tab?: string }>;
+  searchParams?: Promise<{ tab?: string; origem?: string }>;
 }
 
 export default async function DemandWorkspacePage({ params, searchParams }: DemandWorkspacePageProps) {
@@ -42,6 +42,7 @@ export default async function DemandWorkspacePage({ params, searchParams }: Dema
       timeline={timeline} 
       initialAssets={assets}
       defaultTab={resolvedSearchParams.tab || 'overview'}
+      isOrigemIntake={resolvedSearchParams.origem === 'intake'}
     />
   );
 }

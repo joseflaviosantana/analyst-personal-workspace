@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { PlusCircle, FileText, ArrowRight } from 'lucide-react';
+import { PlusCircle, FileText, ArrowRight, Sparkles } from 'lucide-react';
 import { SqliteDemandRepository } from '@/infrastructure/db/repositories/demand-repository';
 import { ListDemandsUseCase } from '@/core/use-cases/demands/list-demands';
 import { Card } from '@/components/ui/Card';
@@ -27,14 +27,25 @@ export default async function DemandsPage() {
           </p>
         </div>
 
-        <Link
-          href="/demands/new"
-          data-testid="btn-new-demand-main"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-500 transition-colors"
-        >
-          <PlusCircle className="h-4 w-4" />
-          <span>Nova Demanda</span>
-        </Link>
+        <div className="flex items-center gap-2.5">
+          <Link
+            href="/intake"
+            data-testid="btn-intake-demands"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-blue-500/40 bg-blue-950/40 px-3.5 py-2 text-xs font-semibold text-blue-300 hover:bg-blue-900/60 transition-colors"
+          >
+            <Sparkles className="h-4 w-4 text-blue-400" />
+            <span>Entrada Inteligente</span>
+          </Link>
+
+          <Link
+            href="/demands/new"
+            data-testid="btn-new-demand-main"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-500 transition-colors"
+          >
+            <PlusCircle className="h-4 w-4" />
+            <span>Nova Demanda</span>
+          </Link>
+        </div>
       </div>
 
       {demands.length === 0 ? (

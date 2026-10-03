@@ -10,7 +10,8 @@ import {
   PlusCircle, 
   ShieldCheck, 
   Database,
-  Layers
+  Layers,
+  Sparkles
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -28,6 +29,13 @@ export function Shell({ children }: ShellProps) {
       icon: LayoutDashboard,
       active: pathname === '/' || pathname === '/cockpit',
       testId: 'nav-cockpit',
+    },
+    {
+      name: 'Entrada Inteligente',
+      href: '/intake',
+      icon: Sparkles,
+      active: pathname.startsWith('/intake'),
+      testId: 'nav-intake',
     },
     {
       name: 'Pipeline Kanban',
@@ -128,6 +136,15 @@ export function Shell({ children }: ShellProps) {
           </div>
 
           <div className="flex items-center gap-3">
+            <Link
+              href="/intake"
+              data-testid="btn-quick-intake"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-blue-500/40 bg-blue-950/40 px-3.5 py-1.5 text-xs font-semibold text-blue-300 hover:bg-blue-900/60 hover:text-white transition-colors"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-blue-400" />
+              <span>Entrada Inteligente</span>
+            </Link>
+
             <Link
               href="/projects/new"
               data-testid="btn-quick-new-project"

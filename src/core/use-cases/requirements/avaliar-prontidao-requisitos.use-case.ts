@@ -2,6 +2,7 @@ import { IDemandRepository } from '@/core/domain/repositories/demand-repository.
 import { IRequisitoDemandaRepository } from '@/core/domain/repositories/requisito-demanda-repository.interface';
 import { IPerguntaClarificacaoRepository } from '@/core/domain/repositories/pergunta-clarificacao-repository.interface';
 import { StatusPerguntaClarificacao } from '@/core/domain/enums/status-pergunta-clarificacao';
+import { StatusRequisito } from '@/core/domain/enums/status-requisito';
 
 export interface ProntidaoRequisitosOutput {
   liberadoParaAvanco: boolean;
@@ -19,6 +20,7 @@ export interface ProntidaoRequisitosOutput {
   perguntasNaoBloqueantesPendentes: number;
   temObjetivoDelimitado: boolean;
   temGranularidadeOuPeriodo: boolean;
+  requisitosIntakePendentes?: number;
 }
 
 export class AvaliarProntidaoRequisitosUseCase {
@@ -88,6 +90,17 @@ export class AvaliarProntidaoRequisitosUseCase {
       );
     }
 
+    // 4. Verificação de Requisitos Propostos pelo Intake Pendentes de Triagem
+    const requisitosIntakePendentes = requisitos.filter(
+      (r) => r.origem === 'INTAKE' && r.status === StatusRequisito.IDENTIFICADO
+    ).length;
+
+    if (requisitosIntakePendentes > 0) {
+      avisosConsultivos.push(
+        `Existem ${requisitosIntakePendentes} requisito(s) propostos pelo Intake aguardando deliberação humana (validar ou descartar).`
+      );
+    }
+
     const isHomologado = Boolean(demanda.requisitos_homologados_em);
     if (!isHomologado) {
       avisosConsultivos.push(
@@ -115,6 +128,7 @@ export class AvaliarProntidaoRequisitosUseCase {
       perguntasNaoBloqueantesPendentes,
       temObjetivoDelimitado,
       temGranularidadeOuPeriodo,
+      requisitosIntakePendentes,
     };
   }
 }

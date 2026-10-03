@@ -1,0 +1,1 @@
+ALTER TABLE `demandas` ADD `intake_snapshot` text;

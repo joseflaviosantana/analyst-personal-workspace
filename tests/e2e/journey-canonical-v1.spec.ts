@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import path from 'path';
 
-test.describe('E2E: Jornada Canônica Integral Pré-V1 (Ciclo Completo 11 Abas + Governança)', () => {
+test.describe('E2E: Jornada Canônica Integral Pré-V1 (Ciclo Completo 11 Abas + Governança) [@golden-flow]', () => {
   test('deve percorrer o ciclo profissional completo da Demanda: Nova Demanda -> Requisitos -> Dados -> Qualidade -> Preparação -> Modelagem -> Dashboard/DAX -> Evidências -> Validação -> Entregáveis/Aceite -> Encerramento -> Dossiê -> STAR -> APROV-10 -> Invalidação -> Re-homologação -> Exportação -> Memória Operacional', async ({ page }) => {
     test.setTimeout(180000); // 3 minutos para jornada completa
 

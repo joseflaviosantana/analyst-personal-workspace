@@ -14,11 +14,14 @@ import {
   Loader2,
   CheckCircle2,
   Lock,
+  Sparkles,
+  Info,
 } from 'lucide-react';
 import { DemandaComProjeto } from '@/core/domain/entities/demanda';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { atualizarBriefingDemandaAction } from '@/app/actions/requirements-actions';
+import { aplicarSugestoesIntakeNoBriefing } from '@/core/domain/intake/intake-briefing-merger';
 
 interface BriefingSummarySectionProps {
   demand: DemandaComProjeto;
@@ -35,6 +38,7 @@ export function BriefingSummarySection({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [intakeInfoMsg, setIntakeInfoMsg] = useState<string | null>(null);
 
   // Form states
   const [contexto, setContexto] = useState(demand.contexto || '');
@@ -54,7 +58,41 @@ export function BriefingSummarySection({
     setRestricoesDeclaradas(demand.restricoes_declaradas || '');
     setPrazoEsperado(demand.prazo_esperado || '');
     setError(null);
+    setIntakeInfoMsg(null);
     setIsModalOpen(true);
+  };
+
+  const handleFillIntakeSuggestions = () => {
+    const res = aplicarSugestoesIntakeNoBriefing(
+      {
+        contexto,
+        objetivoInicial,
+        periodoAnalise,
+        granularidade,
+        formatoEntrega,
+        restricoesDeclaradas,
+        prazoEsperado,
+      },
+      demand.intake_snapshot
+    );
+
+    setContexto(res.valores.contexto);
+    setObjetivoInicial(res.valores.objetivoInicial);
+    setPeriodoAnalise(res.valores.periodoAnalise);
+    setGranularidade(res.valores.granularidade);
+    setFormatoEntrega(res.valores.formatoEntrega);
+    setRestricoesDeclaradas(res.valores.restricoesDeclaradas);
+    setPrazoEsperado(res.valores.prazoEsperado);
+
+    if (res.camposPreenchidos.length > 0) {
+      setIntakeInfoMsg(
+        `Sugestões preenchidas nos campos vazios: ${res.camposPreenchidos.join(', ')}. Seus dados existentes foram preservados.`
+      );
+    } else {
+      setIntakeInfoMsg(
+        'Nenhum campo vazio pôde ser preenchido: seus dados manuais foram preservados ou não havia sugestão no Intake.'
+      );
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -262,6 +300,43 @@ export function BriefingSummarySection({
             {error && (
               <div className="mb-4 rounded-lg border border-rose-800 bg-rose-950/40 p-3 text-xs text-rose-300">
                 {error}
+              </div>
+            )}
+
+            {demand.intake_snapshot && (
+              <div className="mb-4 rounded-lg border border-blue-900/60 bg-blue-950/30 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-xs text-blue-200">
+                  <Sparkles className="h-4 w-4 text-blue-400 shrink-0" />
+                  <span>Existem descobertas do Intake Snapshot disponíveis para este briefing.</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleFillIntakeSuggestions}
+                  data-testid="btn-fill-intake-suggestions"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-blue-500/50 bg-blue-600/30 px-3 py-1.5 text-xs font-semibold text-blue-200 hover:bg-blue-600/50 hover:text-white transition-colors shrink-0"
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-blue-300" />
+                  <span>Preencher Sugestões do Intake</span>
+                </button>
+              </div>
+            )}
+
+            {intakeInfoMsg && (
+              <div
+                className="mb-4 rounded-lg border border-blue-800 bg-blue-950/60 p-3 text-xs text-blue-200 flex items-center justify-between gap-2 animate-in fade-in"
+                data-testid="msg-intake-fill-feedback"
+              >
+                <div className="flex items-center gap-2">
+                  <Info className="h-4 w-4 text-blue-400 shrink-0" />
+                  <span>{intakeInfoMsg}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIntakeInfoMsg(null)}
+                  className="text-slate-400 hover:text-white text-xs"
+                >
+                  ✕
+                </button>
               </div>
             )}
 
